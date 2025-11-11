@@ -57,6 +57,10 @@ import { IonButton, IonContent, IonPage } from '@ionic/vue';
   --background: transparent;
 }
 
+ion-content::part(scroll) {
+  padding-top: 0;
+}
+
 .register-btn {
   --background: #1fb16a;
   --background-activated: #199457;
