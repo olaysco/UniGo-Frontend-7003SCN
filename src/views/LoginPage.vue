@@ -1,7 +1,7 @@
 <template>
   <ion-page>
     <ion-content :fullscreen="true" class="login-content">
-      <div class="min-h-screen w-full bg-[#f5f6f8] px-5 py-10">
+      <div class="min-h-screen w-full bg-[#f5f6f8] ion-padding">
         <div class="mx-auto w-full max-w-md">
           <header class="mb-10 flex items-center gap-3">
             <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-md">
@@ -55,7 +55,7 @@
                 <button type="button" class="text-sm font-semibold text-emerald-600">Forgot password?</button>
               </div>
 
-              <ion-button expand="block" class="login-btn h-14 text-white">
+              <ion-button expand="block" class="login-btn h-14 text-white" @click="handleLogin">
                 Log In
               </ion-button>
 
@@ -94,17 +94,23 @@
 import { computed, ref } from 'vue';
 import { IonButton, IonContent, IonIcon, IonPage } from '@ionic/vue';
 import { car, checkmarkCircle, eye, eyeOff } from 'ionicons/icons';
+import { useRouter } from 'vue-router';
 
 const email = ref('');
 const password = ref('');
 const passwordVisible = ref(false);
 const passwordTouched = ref(false);
+const router = useRouter();
 
 const emailValid = computed(() => /.+@.+\..+/.test(email.value));
 const isPasswordValid = computed(() => password.value.length >= 8);
 
 const togglePassword = () => {
   passwordVisible.value = !passwordVisible.value;
+};
+
+const handleLogin = () => {
+  router.push('/tabs/home');
 };
 </script>
 
