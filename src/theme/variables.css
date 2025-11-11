@@ -13,8 +13,8 @@ http://ionicframework.com/docs/theming/ */
 
 	--ion-color-secondary: #14ba82;
 	--ion-color-secondary-rgb: 20,186,130;
-	--ion-color-secondary-contrast: #000000;
-	--ion-color-secondary-contrast-rgb: 0,0,0;
+	--ion-color-secondary-contrast: #ffffff;
+	--ion-color-secondary-contrast-rgb: 255,255,255;
 	--ion-color-secondary-shade: #12a472;
 	--ion-color-secondary-tint: #2cc18f;
 
@@ -73,4 +73,8 @@ http://ionicframework.com/docs/theming/ */
 
 a {
     color: var(--ion-color-secondary);
+}
+
+ion-content::part(scroll) {
+  padding-top: var(--ion-safe-area-top, 0);
 }

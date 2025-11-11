@@ -21,21 +21,33 @@ const routes: Array<RouteRecordRaw> = [
     children: [
       {
         path: '',
-        redirect: '/tabs/tab1'
+        redirect: '/tabs/home'
       },
       {
-        path: 'tab1',
-        component: () => import('@/views/Tab1Page.vue')
+        path: 'home',
+        component: () => import('@/views/HomePage.vue')
       },
       {
-        path: 'tab2',
-        component: () => import('@/views/Tab2Page.vue')
+        path: 'trips',
+        component: () => import('@/views/TripsPage.vue')
       },
       {
-        path: 'tab3',
-        component: () => import('@/views/Tab3Page.vue')
+        path: 'bookings',
+        component: () => import('@/views/BookingsPage.vue')
+      },
+      {
+        path: 'messages',
+        component: () => import('@/views/MessagesPage.vue')
+      },
+      {
+        path: 'profile',
+        component: () => import('@/views/ProfilePage.vue')
       }
     ]
+  },
+  {
+    path: '/create-trip',
+    component: () => import('@/views/CreateTripPage.vue')
   }
 ]
 
