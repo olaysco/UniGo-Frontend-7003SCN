@@ -35,13 +35,16 @@
         </div>
       </div>
 
-      <ion-button size="small" >View Details</ion-button>
+      <ion-button size="small" @click="openDetails" aria-label="View trip details">
+        View Details
+      </ion-button>
     </div>
   </article>
 </template>
 
 <script setup lang="ts">
-import { IonIcon } from '@ionic/vue';
+import { IonButton, IonIcon } from '@ionic/vue';
+import { useRouter } from 'vue-router';
 import { peopleOutline } from 'ionicons/icons';
 
 export interface Passenger {
@@ -69,12 +72,18 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+const router = useRouter();
+
+const openDetails = () => {
+  router.push({ name: 'trip-details', params: { id: props.trip.id } });
+};
 </script>
 
 <style scoped>
 .trip-card {
   background: #ffffff;
-  border-radius: 28px;
+  border-radius: var(--box-radius-lg);
   padding: 22px 24px;
   box-shadow: 0 25px 60px rgba(15, 23, 42, 0.08);
 }
@@ -83,6 +92,7 @@ const props = defineProps<Props>();
   display: flex;
   align-items: flex-start;
   gap: 18px;
+  justify-content: space-between;
 }
 
 .trip-time {
@@ -104,7 +114,7 @@ const props = defineProps<Props>();
 .map-preview {
   width: 72px;
   height: 72px;
-  border-radius: 18px;
+  border-radius: var(--box-radius-lg);
   position: relative;
   flex-shrink: 0;
   background: linear-gradient(130deg, #f2f6ff, #dcefee);
@@ -117,7 +127,7 @@ const props = defineProps<Props>();
 .map-route {
   position: absolute;
   inset: 12px;
-  border-radius: 14px;
+  border-radius: var(--box-radius-lg);
   border: 2px dashed rgba(15, 23, 42, 0.2);
 }
 
