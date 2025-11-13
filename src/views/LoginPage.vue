@@ -1,13 +1,10 @@
 <template>
   <ion-page>
-    <ion-content :fullscreen="true" class="login-content">
+    <ion-content :fullscreen="true" class="login-content safe-area-scroll">
       <div class="min-h-screen w-full bg-[#f5f6f8] ion-padding">
         <div class="mx-auto w-full max-w-md">
           <header class="mb-10 flex items-center gap-3">
-            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-md">
-              <ion-icon :icon="car" class="text-2xl text-slate-900" />
-            </div>
-            <p class="text-lg font-semibold text-slate-900">UniGo</p>
+            <BrandMark />
           </header>
 
           <section class="rounded-3xl bg-white px-6 py-8 shadow-[0_25px_60px_rgba(15,23,42,0.08)]">
@@ -20,12 +17,14 @@
               <div class="form-field">
                 <label for="login-email">Email Address</label>
                 <div class="input-shell" :class="{ success: emailValid }">
-                  <input
+                  <ion-input
                     id="login-email"
                     v-model="email"
                     type="email"
                     placeholder="Enter your email"
                     autocomplete="email"
+                    inputmode="email"
+                    class="text-input"
                   />
                   <ion-icon v-if="emailValid" :icon="checkmarkCircle" class="text-emerald-500" />
                 </div>
@@ -34,13 +33,14 @@
               <div class="form-field">
                 <label for="login-password">Password</label>
                 <div class="input-shell" :class="{ error: passwordTouched && !isPasswordValid }">
-                  <input
+                  <ion-input
                     :type="passwordVisible ? 'text' : 'password'"
                     id="login-password"
                     v-model="password"
                     placeholder="Enter your password"
                     autocomplete="current-password"
-                    @input="passwordTouched = true"
+                    class="text-input"
+                    @ion-input="passwordTouched = true"
                   />
                   <button type="button" class="icon-button" @click="togglePassword">
                     <ion-icon :icon="passwordVisible ? eye : eyeOff" />
@@ -92,8 +92,9 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { IonButton, IonContent, IonIcon, IonPage } from '@ionic/vue';
-import { car, checkmarkCircle, eye, eyeOff } from 'ionicons/icons';
+import BrandMark from '@/components/BrandMark.vue';
+import { IonButton, IonContent, IonIcon, IonInput, IonPage } from '@ionic/vue';
+import { checkmarkCircle, eye, eyeOff } from 'ionicons/icons';
 import { useRouter } from 'vue-router';
 
 const email = ref('');
@@ -141,22 +142,21 @@ section {
   height: 58px;
 }
 
-.input-shell input {
-  border: none;
+.input-shell:focus-within {
+  border-color: #1fb16a;
+  box-shadow: 0 0 0 1px rgba(31, 177, 106, 0.2);
+}
+
+.text-input {
   flex: 1;
   font-size: 1rem;
-  color: #0f172a;
-  background: transparent;
-}
-
-.input-shell input::placeholder {
-  color: #b2b9c7;
-}
-
-.input-shell input:focus,
-.input-shell input:focus-visible {
-  outline: none;
-  box-shadow: none;
+  --padding-start: 0;
+  --padding-end: 0;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --background: transparent;
+  --color: #0f172a;
+  --placeholder-color: #b2b9c7;
 }
 
 .input-shell.success {
