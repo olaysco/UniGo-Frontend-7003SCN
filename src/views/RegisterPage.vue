@@ -1,15 +1,10 @@
 <template>
   <ion-page>
-    <ion-content :fullscreen="true" class="register-content">
-      <div class="min-h-screen w-full bg-[#f5f6f8] px-5 py-10">
+    <ion-content :fullscreen="true" class="register-content safe-area-scroll">
+      <div class="min-h-screen w-full bg-[#f5f6f8] ion-padding">
         <div class="mx-auto w-full max-w-md">
           <header class="mb-10 flex items-center gap-3">
-            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-md">
-              <ion-icon :icon="car" class="text-2xl text-slate-900" />
-            </div>
-            <div>
-              <p class="text-lg font-semibold text-slate-900">UniGo</p>
-            </div>
+            <BrandMark />
           </header>
 
           <section class="rounded-3xl bg-white px-6 py-8 shadow-[0_25px_60px_rgba(15,23,42,0.08)]">
@@ -39,12 +34,14 @@
               <div class="form-field">
                 <label for="fullName">Full Name</label>
                 <div class="input-shell">
-                  <input
+                  <ion-input
                     id="fullName"
                     v-model="fullName"
                     type="text"
                     placeholder="Enter your full name"
                     autocomplete="name"
+                    class="text-input"
+                    clear-input
                   />
                 </div>
               </div>
@@ -52,12 +49,14 @@
               <div class="form-field">
                 <label for="email">Email Address</label>
                 <div class="input-shell" :class="{ success: emailValid }">
-                  <input
+                  <ion-input
                     id="email"
                     v-model="email"
                     type="email"
                     placeholder="Enter your email"
                     autocomplete="email"
+                    inputmode="email"
+                    class="text-input"
                   />
                   <ion-icon v-if="emailValid" :icon="checkmarkCircle" class="text-emerald-500" />
                 </div>
@@ -66,12 +65,13 @@
               <div class="form-field">
                 <label for="password">Password</label>
                 <div class="input-shell">
-                  <input
+                  <ion-input
                     :type="passwordVisible ? 'text' : 'password'"
                     id="password"
                     v-model="password"
                     placeholder="Enter your password"
                     autocomplete="new-password"
+                    class="text-input"
                   />
                   <button type="button" class="icon-button" @click="togglePassword">
                     <ion-icon :icon="passwordVisible ? eye : eyeOff" />
@@ -82,13 +82,15 @@
               <div class="form-field">
                 <label for="phone">Phone Number</label>
                 <div class="input-shell" :class="{ error: !isPhoneValid }">
-                  <input
+                  <ion-input
                     id="phone"
                     v-model="phone"
                     type="tel"
                     placeholder="Enter your phone number"
                     autocomplete="tel"
-                    @input="phoneTouched = true"
+                    inputmode="tel"
+                    class="text-input"
+                    @ion-input="phoneTouched = true"
                   />
                 </div>
                 <p v-if="phoneTouched && !isPhoneValid" class="error-text">
@@ -119,7 +121,8 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { IonButton, IonContent, IonIcon, IonPage } from '@ionic/vue';
+import BrandMark from '@/components/BrandMark.vue';
+import { IonButton, IonContent, IonIcon, IonInput, IonPage } from '@ionic/vue';
 import { car, checkmarkCircle, eye, eyeOff } from 'ionicons/icons';
 
 const role = ref<'owner' | 'rider'>('owner');
@@ -175,7 +178,6 @@ section {
 
 .form-field label {
   display: block;
-  font-weight: 600;
   margin-bottom: 8px;
   color: #101828;
 }
@@ -191,22 +193,21 @@ section {
   height: 58px;
 }
 
-.input-shell input {
-  border: none;
+.input-shell:focus-within {
+  border-color: #1fb16a;
+  box-shadow: 0 0 0 1px rgba(31, 177, 106, 0.2);
+}
+
+.text-input {
   flex: 1;
   font-size: 1rem;
-  color: #0f172a;
-  background: transparent;
-}
-
-.input-shell input:focus,
-.input-shell input:focus-visible {
-  outline: none;
-  box-shadow: none;
-}
-
-.input-shell input::placeholder {
-  color: #b2b9c7;
+  --padding-start: 0;
+  --padding-end: 0;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --background: transparent;
+  --color: #0f172a;
+  --placeholder-color: #b2b9c7;
 }
 
 .input-shell.success {
