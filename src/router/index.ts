@@ -28,8 +28,8 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('@/views/HomePage.vue')
       },
       {
-        path: 'trips',
-        component: () => import('@/views/TripsPage.vue')
+        path: 'search',
+        component: () => import('@/views/SearchPage.vue')
       },
       {
         path: 'bookings',
@@ -42,12 +42,25 @@ const routes: Array<RouteRecordRaw> = [
       {
         path: 'profile',
         component: () => import('@/views/ProfilePage.vue')
-      }
+      },
+      {
+        path: 'faq',
+        component: () => import('@/views/FaqHelpPage.vue')
+      },
     ]
   },
   {
     path: '/create-trip',
     component: () => import('@/views/CreateTripPage.vue')
+  },
+  {
+    path: '/terms',
+    component: () => import('@/views/TermsOfServicePage.vue')
+  },
+  {
+    path: '/trip/:id',
+    name: 'trip-details',
+    component: () => import('@/views/TripDetailsPage.vue')
   }
 ]
 

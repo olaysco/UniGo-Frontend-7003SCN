@@ -2,7 +2,6 @@
   <ion-page>
     <ion-content class="profile-page safe-area-scroll" :fullscreen="true">
       <header class="hero">
-        <h1>Profile</h1>
         <div class="avatar-shell" role="img" aria-label="Charlie Smith avatar">
           <img src="https://i.pravatar.cc/200?img=12" alt="Charlie Smith" />
         </div>
@@ -37,7 +36,7 @@
         <section class="section">
           <p class="section-title">Support</p>
           <ul class="option-card">
-            <ProfileRow icon="cardOutline" label="FAQ & Help" @click="openOption('faq-help')" />
+            <ProfileRow icon="cardOutline" label="FAQ & Help" @click="openOption('faq')" />
             <ProfileRow icon="giftOutline" label="Terms of Service" @click="openOption('terms-of-service')" />
           </ul>
         </section>
@@ -58,11 +57,13 @@
 import { IonContent, IonIcon, IonPage } from '@ionic/vue';
 import { chevronForward, logOutOutline, star } from 'ionicons/icons';
 import ProfileRow from '@/components/ProfileRow.vue';
+import router from '@/router';
 
 const rating = 5.0;
 
 const openOption = (key: string) => {
-  console.info(`Open ${key}`);
+  console.log(`/tabs/${key}`)
+  router.push(`/tabs/${key}`);
 };
 
 const logout = () => {
