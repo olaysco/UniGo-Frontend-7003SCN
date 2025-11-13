@@ -1,22 +1,16 @@
 <template>
   <ion-page>
-    <ion-content class="home-content" :fullscreen="true">
-      <!-- <section class="px-5 py-10"> -->
-        <div class="header-bar ion-padding">
-          <div class="brand-mark">
-            <div class="brand-icon">
-              <ion-icon :icon="carSportOutline" aria-hidden="true" />
-            </div>
-            <p class="brand-name">UniGo</p>
-          </div>
+    <ion-content class="home-content safe-area-scroll" :fullscreen="true">
+      <div class="header-bar ion-padding">
+        <BrandMark />
 
-          <button class="profile-button" aria-label="Open profile">
-            <ion-icon :icon="personCircleOutline" aria-hidden="true" />
-          </button>
-        </div>
+        <button class="profile-button" aria-label="Open profile" @click="openProfile">
+          <ion-icon :icon="personCircleOutline" aria-hidden="true" />
+        </button>
+      </div>
 
-        <div class="ion-padding">
-          <section class="greeting-card">
+      <div class="ion-padding">
+        <section class="greeting-card">
           <p class="eyebrow">Good morning</p>
           <h1>{{ greeting }}</h1>
         </section>
@@ -27,14 +21,8 @@
           </div>
 
           <div class="trip-filter">
-            <button
-              v-for="tab in tabs"
-              :key="tab.id"
-              class="filter-btn"
-              :class="{ 'is-active': tab.id === activeTab }"
-              type="button"
-              @click="activeTab = tab.id"
-            >
+            <button v-for="tab in tabs" :key="tab.id" class="filter-btn" :class="{ 'is-active': tab.id === activeTab }"
+              type="button" @click="activeTab = tab.id">
               {{ tab.label }}
             </button>
           </div>
@@ -46,14 +34,13 @@
             <p>No {{ activeTab }} trips yet. Start planning your next ride!</p>
           </div>
         </section>
-        </div>
+      </div>
 
-<ion-fab slot="fixed" vertical="bottom" horizontal="end" class="create-fab">
-  <ion-fab-button color="secondary" aria-label="Create new trip" @click="openCreateTrip">
-    <ion-icon :icon="add" aria-hidden="true" />
-  </ion-fab-button>
-</ion-fab>
-      <!-- </section> -->
+      <ion-fab slot="fixed" vertical="bottom" horizontal="end" class="create-fab">
+        <ion-fab-button color="secondary" aria-label="Create new trip" @click="openCreateTrip">
+          <ion-icon :icon="add" aria-hidden="true" />
+        </ion-fab-button>
+      </ion-fab>
     </ion-content>
   </ion-page>
 </template>
@@ -62,7 +49,8 @@
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { IonContent, IonFab, IonFabButton, IonIcon, IonPage } from '@ionic/vue';
-import { add, carSportOutline, personCircleOutline } from 'ionicons/icons';
+import { add, personCircleOutline } from 'ionicons/icons';
+import BrandMark from '@/components/BrandMark.vue';
 import TripCard, { TripCardData } from '@/components/TripCard.vue';
 
 const userName = 'Alex';
@@ -78,6 +66,10 @@ const router = useRouter();
 
 const openCreateTrip = () => {
   router.push('/create-trip');
+};
+
+const openProfile = () => {
+  router.push('/tabs/profile');
 };
 
 const trips = ref<TripCardData[]>([
@@ -133,30 +125,6 @@ const filteredTrips = computed(() => trips.value.filter(trip => trip.state === a
   display: flex;
   align-items: center;
   justify-content: space-between;
-}
-
-.brand-mark {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.brand-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 16px;
-  background: rgba(20, 186, 130, 0.12);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--ion-color-secondary);
-  box-shadow: 0 10px 25px rgba(20, 186, 130, 0.15);
-}
-
-.brand-name {
-  font-size: 1.15rem;
-  font-weight: 600;
-  color: #0c1220;
 }
 
 .profile-button {
