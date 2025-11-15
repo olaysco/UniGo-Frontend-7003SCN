@@ -70,25 +70,47 @@
         </section>
       </main>
     </ion-content>
+    <ion-modal
+      :is-open="paneVisible"
+      :initial-breakpoint="0.6"
+      :breakpoints="[0.6, 0.95]"
+      handle-behavior="cycle"
+      class="profile-edit-modal"
+      @didDismiss="handleModalDismiss"
+    >
+      <div v-if="activeFieldMeta" class="pane-content">
+        <div class="pane-header">
+          <p class="pane-subtitle">Edit {{ activeFieldMeta.label }}</p>
+          <h2>{{ activeFieldMeta.label }}</h2>
+        </div>
+        <ion-input
+          v-model="editingValue"
+          :type="activeFieldMeta.type"
+          :placeholder="activeFieldMeta.placeholder"
+          fill="outline"
+          label-placement="stacked"
+          class="pane-input"
+        >
+          <div slot="label">{{ activeFieldMeta.label }}</div>
+        </ion-input>
+        <p class="pane-helper">{{ activeFieldMeta.helper }}</p>
+        <div class="pane-actions">
+          <ion-button expand="block" fill="clear" color="medium" @click="closePane">
+            Cancel
+          </ion-button>
+          <ion-button expand="block" color="success" :disabled="isSaveDisabled" @click="saveField">
+            Save changes
+          </ion-button>
+        </div>
+      </div>
+    </ion-modal>
   </ion-page>
-
-  <ProfileFieldEditorPane
-    v-if="activeFieldMeta"
-    :open="isPaneOpen"
-    :label="activeFieldMeta.label"
-    :placeholder="activeFieldMeta.placeholder"
-    :helper="activeFieldMeta.helper"
-    :type="activeFieldMeta.type"
-    :value="editingValue"
-    @close="closeEditor"
-    @save="handleSave"
-  />
 </template>
 
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
-import { IonContent, IonIcon, IonPage } from '@ionic/vue';
-import { useRouter } from 'vue-router';
+import { IonButton, IonContent, IonIcon, IonInput, IonModal, IonPage } from '@ionic/vue';
+import { useRouter, onBeforeRouteLeave } from 'vue-router';
 import {
   calendarOutline,
   chevronBackOutline,
@@ -98,7 +120,6 @@ import {
   shieldCheckmarkOutline,
   trashOutline
 } from 'ionicons/icons';
-import ProfileFieldEditorPane from '@/components/ProfileFieldEditorPane.vue';
 
 type EditableFieldKey = 'name' | 'phone' | 'email' | 'birthDate';
 
@@ -134,37 +155,42 @@ const fieldMeta: Record<EditableFieldKey, { label: string; placeholder: string; 
   birthDate: {
     label: 'Date of birth',
     placeholder: 'DD/MM/YYYY',
-    type: 'text',
+    type: 'date',
     helper: 'We use your birth date to verify eligibility for certain trips.'
   }
 };
 
 const editingField = ref<EditableFieldKey | null>(null);
 const editingValue = ref('');
-const isPaneOpen = ref(false);
+const paneVisible = ref(false);
 
 const activeFieldMeta = computed(() => (editingField.value ? fieldMeta[editingField.value] : null));
+const isSaveDisabled = computed(() => !editingField.value || editingValue.value.trim().length === 0);
 
 const goBack = () => {
   router.back();
 };
 
-const openEditor = (field: EditableFieldKey) => {
+const openEditor = async (field: EditableFieldKey) => {
   editingField.value = field;
   editingValue.value = profile[field] || '';
-  isPaneOpen.value = true;
+  paneVisible.value = true;
 };
 
-const closeEditor = () => {
-  isPaneOpen.value = false;
+const closePane = () => {
+  paneVisible.value = false;
   editingField.value = null;
   editingValue.value = '';
 };
 
-const handleSave = (value: string) => {
+const saveField = () => {
   if (!editingField.value) return;
-  profile[editingField.value] = value;
-  closeEditor();
+  profile[editingField.value] = editingValue.value.trim();
+  closePane();
+};
+
+const handleModalDismiss = () => {
+  closePane();
 };
 
 const handleSignOut = () => {
@@ -174,6 +200,12 @@ const handleSignOut = () => {
 const handleDelete = () => {
   console.info('Delete account tapped');
 };
+
+onBeforeRouteLeave(() => {
+  if (paneVisible.value) {
+    closePane();
+  }
+});
 </script>
 
 <style scoped>
@@ -296,5 +328,65 @@ const handleDelete = () => {
 
 .destructive {
   color: #e53d35;
+}
+
+:global(.profile-edit-modal::part(content)) {
+  --background: transparent;
+  --border-radius: 24px 24px 0 0;
+  --box-shadow: none;
+  align-self: flex-end;
+  padding: 0;
+}
+
+:global(.profile-edit-modal::part(backdrop)) {
+  background: rgba(15, 18, 34, 0.45);
+}
+
+.pane-content {
+  background: #ffffff;
+  border-radius: 32px 32px 0 0;
+  padding: 20px 20px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+}
+
+.pane-header h2 {
+  margin: 4px 0 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.pane-subtitle {
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+  color: #7d869e;
+  margin: 0;
+}
+
+.pane-helper {
+  font-size: 0.85rem;
+  color: #7a859c;
+}
+
+.pane-input {
+  --background: #f5f7fb;
+  --border-color: #d9dde8;
+  --border-radius: 18px;
+  --highlight-color-focused: #03a46b;
+  --highlight-color-valid: #03a46b;
+}
+
+.pane-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.pane-actions ion-button {
+  flex: 1;
+  height: 48px;
+  --border-radius: 14px;
 }
 </style>
