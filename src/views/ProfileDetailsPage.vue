@@ -1,13 +1,7 @@
 <template>
   <ion-page>
     <ion-content class="details-page safe-area-scroll" :fullscreen="true">
-      <header class="top-bar ion-padding-horizontal">
-        <button class="icon-button" type="button" aria-label="Go back" @click="goBack">
-          <ion-icon :icon="chevronBackOutline" aria-hidden="true" />
-        </button>
-        <h1>Profile Details</h1>
-        <span class="icon-button placeholder" aria-hidden="true"></span>
-      </header>
+      <AppBackHeader title="Profile Details" @back="goBack" />
 
       <main class="details-body">
         <section class="card">
@@ -110,16 +104,17 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
 import { IonButton, IonContent, IonIcon, IonInput, IonModal, IonPage } from '@ionic/vue';
+import type { TextFieldTypes } from '@ionic/core';
 import { useRouter, onBeforeRouteLeave } from 'vue-router';
 import {
   calendarOutline,
-  chevronBackOutline,
   chevronForwardOutline,
   createOutline,
   logOutOutline,
   shieldCheckmarkOutline,
   trashOutline
 } from 'ionicons/icons';
+import AppBackHeader from '@/components/AppBackHeader.vue';
 
 type EditableFieldKey = 'name' | 'phone' | 'email' | 'birthDate';
 
@@ -133,7 +128,14 @@ const profile = reactive({
   birthDate: ''
 });
 
-const fieldMeta: Record<EditableFieldKey, { label: string; placeholder: string; type: string; helper: string }> = {
+interface FieldMeta {
+  label: string;
+  placeholder: string;
+  type: TextFieldTypes;
+  helper: string;
+}
+
+const fieldMeta: Record<EditableFieldKey, FieldMeta> = {
   name: {
     label: 'Account name',
     placeholder: 'Enter your full name',
@@ -211,38 +213,6 @@ onBeforeRouteLeave(() => {
 <style scoped>
 .details-page {
   --background: #f6f7fb;
-}
-
-.top-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-top: 48px;
-  padding-bottom: 16px;
-}
-
-.top-bar h1 {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #0f1b2b;
-}
-
-.icon-button {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: none;
-  background: #ffffff;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #0f1b2b;
-  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12);
-}
-
-.icon-button.placeholder {
-  opacity: 0;
-  pointer-events: none;
 }
 
 .details-body {

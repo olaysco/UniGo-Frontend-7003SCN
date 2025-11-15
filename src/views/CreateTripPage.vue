@@ -1,16 +1,8 @@
 <template>
   <ion-page>
-    <ion-header translucent>
-      <ion-toolbar>
-        <ion-buttons slot="start">
-          <ion-back-button color="secondary" default-href="/tabs/home"></ion-back-button>
-        </ion-buttons>
-        <ion-title>Create a New Trip</ion-title>
-      </ion-toolbar>
-    </ion-header>
-
-    <ion-content class="create-trip-content ion-padding">
-      <div class="page-inner mt-5">
+    <ion-content class="create-trip-content">
+      <AppBackHeader title="Create a New Trip" subtitle="Create Trip" @back="goBack" />
+      <div class="page-inner">
         <section class="section-block">
           <p class="section-eyebrow">Where are you going?</p>
 
@@ -70,7 +62,7 @@
       </div>
 
       <div class="action-bar">
-        <ion-button expand="block" size="large" color="secondary">Create Trip</ion-button>
+    <ion-button expand="block" size="large" color="secondary">Create Trip</ion-button>
       </div>
     </ion-content>
   </ion-page>
@@ -78,22 +70,12 @@
 
 <script setup lang="ts">
 import { reactive } from 'vue';
-import {
-  IonBackButton,
-  IonButton,
-  IonButtons,
-  IonContent,
-  IonDatetime,
-  IonDatetimeButton,
-  IonHeader,
-  IonIcon,
-  IonInput,
-  IonModal,
-  IonPage,
-  IonTitle,
-  IonToolbar
-} from '@ionic/vue';
+import { IonButton, IonContent, IonDatetime, IonDatetimeButton, IonIcon, IonInput, IonModal, IonPage } from '@ionic/vue';
 import { addOutline, locationOutline, navigateOutline, removeOutline } from 'ionicons/icons';
+import { useRouter } from 'vue-router';
+import AppBackHeader from '@/components/AppBackHeader.vue';
+
+const router = useRouter();
 
 const form = reactive({
   pickupPoint: '',
@@ -117,21 +99,23 @@ const decreaseSeats = () => {
     form.seats -= 1;
   }
 };
+
+const goBack = () => {
+  router.back();
+};
 </script>
 
 <style scoped>
-.create-trip-header ion-toolbar {
-  --background: #f7f8fb;
-  --border-width: 0;
-  font-weight: 600;
-}
-
 .create-trip-content {
   --background: #f4f5f8;
 }
 
 .create-trip-content::part(scroll) {
   padding-top: 0;
+}
+
+.page-inner {
+  padding: 0 20px 40px;
 }
 
 .section-block+.section-block {
