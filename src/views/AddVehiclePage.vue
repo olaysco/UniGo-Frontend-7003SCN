@@ -119,16 +119,15 @@ ion-content.manage-vehicle-page {
 }
 
 .input-field {
-  --background: #ffffff;
-  --border-radius: 18px;
-  --border-color: #d9dde8;
-  --highlight-color-focused: #03a46b;
-  --highlight-color-valid: #03a46b;
-  --padding-start: 16px;
-  --padding-end: 16px;
-  --padding-top: 12px;
-  --padding-bottom: 12px;
-  margin-top: 16px;
+  flex: 1;
+  font-size: 1rem;
+  --padding-start: 0;
+  --padding-end: 0;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --background: transparent;
+  --color: #0f172a;
+  --placeholder-color: #b2b9c7;
 }
 
 .input-grid {
