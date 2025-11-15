@@ -75,24 +75,34 @@
       <div v-if="activeFieldMeta" class="pane-content">
         <div class="pane-header">
           <p class="pane-subtitle">Edit {{ activeFieldMeta.label }}</p>
-          <h2>{{ activeFieldMeta.label }}</h2>
+          <!-- <h2>{{ activeFieldMeta.label }}</h2> -->
         </div>
-        <ion-input
-          v-model="editingValue"
-          :type="activeFieldMeta.type"
-          :placeholder="activeFieldMeta.placeholder"
-          fill="outline"
-          label-placement="stacked"
-          class="pane-input"
-        >
-          <div slot="label">{{ activeFieldMeta.label }}</div>
-        </ion-input>
+        <label class="pane-field-label" :for="activeInputId">{{ activeFieldMeta.label }}</label>
+        <div class="pane-input-shell text-slate-500">
+          <input
+            v-if="activeFieldMeta?.type === 'date'"
+            :id="activeInputId"
+            v-model="editingValue"
+            type="date"
+            :placeholder="activeFieldMeta.placeholder"
+            class="pane-native-date"
+          />
+          <ion-input
+            v-else
+            :id="activeInputId"
+            v-model="editingValue"
+            :type="activeFieldMeta?.type"
+            :placeholder="activeFieldMeta?.placeholder"
+            class="pane-input"
+            autocapitalize="sentences"
+          />
+        </div>
         <p class="pane-helper">{{ activeFieldMeta.helper }}</p>
         <div class="pane-actions">
           <ion-button expand="block" fill="clear" color="medium" @click="closePane">
             Cancel
           </ion-button>
-          <ion-button expand="block" color="success" :disabled="isSaveDisabled" @click="saveField">
+          <ion-button expand="block" color="secondary" :disabled="isSaveDisabled" @click="saveField">
             Save changes
           </ion-button>
         </div>
@@ -167,6 +177,7 @@ const editingValue = ref('');
 const paneVisible = ref(false);
 
 const activeFieldMeta = computed(() => (editingField.value ? fieldMeta[editingField.value] : null));
+const activeInputId = computed(() => (editingField.value ? `edit-${editingField.value}` : undefined));
 const isSaveDisabled = computed(() => !editingField.value || editingValue.value.trim().length === 0);
 
 const goBack = () => {
@@ -341,12 +352,88 @@ onBeforeRouteLeave(() => {
   color: #7a859c;
 }
 
+.pane-field-label {
+  display: block;
+  margin-bottom: 8px;
+  color: #101828;
+  font-weight: 600;
+}
+
+.pane-input-shell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 18px;
+  border-radius: 18px;
+  background: #fff;
+  border: 1.5px solid #dbe0e9;
+  height: 58px;
+}
+
+.pane-input-shell:focus-within {
+  border-color: #1fb16a;
+  box-shadow: 0 0 0 1px rgba(31, 177, 106, 0.2);
+}
+
 .pane-input {
-  --background: #f5f7fb;
-  --border-color: #d9dde8;
-  --border-radius: 18px;
-  --highlight-color-focused: #03a46b;
-  --highlight-color-valid: #03a46b;
+  --background: transparent;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --padding-start: 0;
+  --padding-end: 0;
+  width: 100%;
+  font-size: 1rem;
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.pane-input::part(container) {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0;
+}
+
+.pane-input::part(native) {
+  height: 100%;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.pane-input::part(native)::-webkit-date-and-time-value {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+}
+
+.pane-native-date {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #101828;
+  padding: 0;
+  margin: 0;
+  line-height: 58px;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.pane-native-date:focus {
+  outline: none;
+}
+
+.pane-native-date::-webkit-date-and-time-value {
+  display: flex;
+  align-items: center;
+  height: 100%;
 }
 
 .pane-actions {

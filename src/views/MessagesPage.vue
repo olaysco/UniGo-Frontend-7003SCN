@@ -114,7 +114,7 @@ const openMessage = (id: string) => {
 
 <style scoped>
 ion-content.messages-page {
-  --background: #f5f6fa;
+   --background: #f8f9fb;
 }
 
 .message-list {

@@ -212,7 +212,7 @@ const goBack = () => {
 
 <style scoped>
 .trips-page {
-  --background: #f5f6fa;
+  --background: #f8f9fb;
 }
 
 .pill-segment {

@@ -1,5 +1,5 @@
 <template>
-  <header class="app-header ion-padding-horizontal text-slate-900">
+  <header class="app-header ion-padding text-slate-900">
     <button class="icon-button" type="button" aria-label="Go back" @click="$emit('back')">
       <ion-icon :icon="backIcon" aria-hidden="true" />
     </button>
@@ -39,7 +39,6 @@ defineEmits<{ (e: 'back'): void }>();
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-top: 48px;
   padding-bottom: 16px;
   gap: 16px;
 }
@@ -47,7 +46,7 @@ defineEmits<{ (e: 'back'): void }>();
 .icon-button {
   width: 40px;
   height: 40px;
-  border-radius: 50%;
+  border-radius: 14px;
   border: none;
   background: #ffffff;
   display: inline-flex;

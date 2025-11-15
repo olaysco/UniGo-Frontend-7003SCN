@@ -1,6 +1,7 @@
 <template>
   <ion-page>
     <ion-content class="profile-page safe-area-scroll" :fullscreen="true">
+      <AppBackHeader title="Profile" @back="goBack" />
       <header class="hero">
         <div class="avatar-shell" role="img" aria-label="Charlie Smith avatar">
           <img src="https://i.pravatar.cc/200?img=12" alt="Charlie Smith" />
@@ -47,6 +48,7 @@
 <script setup lang="ts">
 import { IonContent, IonIcon, IonPage } from '@ionic/vue';
 import { chevronForward, logOutOutline, star } from 'ionicons/icons';
+import AppBackHeader from '@/components/AppBackHeader.vue';
 import ProfileRow from '@/components/ProfileRow.vue';
 import router from '@/router';
 
@@ -61,6 +63,10 @@ const openOption = (key: string) => {
   router.push(`/tabs/${key}`);
 };
 
+const goBack = () => {
+  router.back();
+};
+
 const logout = () => {
   console.info('Logout tapped');
 };
@@ -68,14 +74,14 @@ const logout = () => {
 
 <style scoped>
 .profile-page {
-  --background: #f6f7fb;
+  --background: #f8f9fb;
 }
 
 .hero {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 44px 24px 24px;
+  padding: 16px 24px 24px;
   text-align: center;
 }
 
