@@ -53,16 +53,8 @@ import {
   IonSegmentButton
 } from '@ionic/vue';
 import type { SegmentChangeEventDetail } from '@ionic/vue';
-import TripCard, { TripCardData } from '@/components/TripCard.vue';
+import TripCard, { TripCardData, RoleOption, TripStatus } from '@/components/TripCard.vue';
 import AppBackHeader from '@/components/AppBackHeader.vue';
-
-type RoleOption = 'coRider' | 'carOwner';
-type TripStatus = 'pending' | 'confirmed' | 'past' | 'active' | 'upcoming';
-
-interface TripRecord extends TripCardData {
-  status: TripStatus;
-  role: RoleOption;
-}
 
 const router = useRouter();
 
@@ -88,7 +80,7 @@ const activeRole = ref<RoleOption>('coRider');
 const activeStatus = ref<TripStatus>(roleStatusTabs[activeRole.value][0].value);
 const statusTabs = computed(() => roleStatusTabs[activeRole.value]);
 
-const trips = ref<TripRecord[]>([
+const trips = ref<TripCardData[]>([
   {
     id: 101,
     datetimeLabel: 'Tue, 28 May · 08:30 AM',

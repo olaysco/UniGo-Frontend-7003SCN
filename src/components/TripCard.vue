@@ -1,5 +1,5 @@
 <template>
-  <article class="trip-card">
+  <button type="button" class="trip-card" @click="openDetails" :aria-label="`View trip ${trip.route}`">
     <div class="trip-card__top">
       <div>
         <p class="trip-time">{{ trip.datetimeLabel }}</p>
@@ -35,15 +35,12 @@
         </div>
       </div>
 
-      <ion-button size="small" @click="openDetails" aria-label="View trip details">
-        View Details
-      </ion-button>
     </div>
-  </article>
+  </button>
 </template>
 
 <script setup lang="ts">
-import { IonButton, IonIcon } from '@ionic/vue';
+import { IonIcon } from '@ionic/vue';
 import { useRouter } from 'vue-router';
 import { peopleOutline } from 'ionicons/icons';
 
@@ -56,17 +53,21 @@ export interface Passenger {
   color: string;
 }
 
+export type RoleOption = 'coRider' | 'carOwner';
+export type TripStatus = 'pending' | 'confirmed' | 'past' | 'active' | 'upcoming';
+
 export interface TripCardData {
   id: number;
   datetimeLabel: string;
   route: string;
   price: string;
-  status: string;
   statusVariant: 'confirmed' | 'pending' | 'completed' | 'active' | 'upcoming';
   seatsLabel?: string;
   passengers: Passenger[];
   mapVariant: 'variant-a' | 'variant-b';
   state: 'active' | 'past';
+  status: TripStatus;
+  role: RoleOption;
 }
 
 interface Props {
@@ -96,6 +97,24 @@ const openDetails = () => {
   border-radius: var(--box-radius-lg);
   padding: 22px 24px;
   box-shadow: 0 25px 60px rgba(15, 23, 42, 0.08);
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.trip-card:focus-visible {
+  outline: 2px solid #1fb16a;
+  outline-offset: 3px;
+}
+
+.trip-card:active {
+  transform: translateY(1px);
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
 }
 
 .trip-card__top {
@@ -223,11 +242,4 @@ const openDetails = () => {
   font-weight: 600;
 }
 
-.ghost-button {
-  border: none;
-  background: #edf0f5;
-  color: #141937;
-  border-radius: 18px;
-  padding: 10px 20px;
-}
 </style>
