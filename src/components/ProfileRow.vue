@@ -13,6 +13,7 @@
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
 import {
+  carOutline,
   cardOutline,
   chevronForward,
   giftOutline,
@@ -20,13 +21,14 @@ import {
   personCircleOutline
 } from 'ionicons/icons';
 
-type IconKey = 'personCircleOutline' | 'locationOutline' | 'cardOutline' | 'giftOutline';
+type IconKey = 'personCircleOutline' | 'locationOutline' | 'cardOutline' | 'giftOutline' | 'carOutline';
 
 const iconMap: Record<IconKey, string> = {
   personCircleOutline,
   locationOutline,
   cardOutline,
-  giftOutline
+  giftOutline,
+  carOutline
 };
 
 defineProps<{ icon: IconKey; label: string }>();
