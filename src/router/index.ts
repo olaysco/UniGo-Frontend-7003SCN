@@ -40,6 +40,11 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('@/views/MessagesPage.vue')
       },
       {
+        path: 'messages/:id',
+        name: 'message-details',
+        component: () => import('@/views/MessageDetailsPage.vue')
+      },
+      {
         path: 'profile',
         component: () => import('@/views/ProfilePage.vue')
       },
@@ -63,6 +68,11 @@ const routes: Array<RouteRecordRaw> = [
         path: '/booked-trip/:id',
         name: 'booked-trip-details',
         component: () => import('@/views/BookedTripDetailsPage.vue')
+      },
+      {
+        path: '/owner-trip/:id',
+        name: 'owner-trip-details',
+        component: () => import('@/views/OwnerTripDetailsPage.vue')
       }
     ]
   },

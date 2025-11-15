@@ -1,11 +1,11 @@
 <template>
-  <header class="app-header ion-padding-horizontal">
+  <header class="app-header ion-padding-horizontal text-slate-900">
     <button class="icon-button" type="button" aria-label="Go back" @click="$emit('back')">
       <ion-icon :icon="backIcon" aria-hidden="true" />
     </button>
     <div class="header-text">
       <p v-if="subtitle">{{ subtitle }}</p>
-      <h1>{{ title }}</h1>
+      <h1 class="text-slate-900">{{ title }}</h1>
     </div>
     <div class="end-slot">
       <slot name="end">
@@ -54,7 +54,6 @@ defineEmits<{ (e: 'back'): void }>();
   align-items: center;
   justify-content: center;
   box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
-  color: #0f1b2b;
 }
 
 .icon-button.placeholder {
@@ -77,7 +76,6 @@ defineEmits<{ (e: 'back'): void }>();
   margin: 4px 0 0;
   font-size: 1.35rem;
   font-weight: 700;
-  color: #0f1b2b;
 }
 
 .end-slot {
