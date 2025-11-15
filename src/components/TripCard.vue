@@ -47,6 +47,8 @@ import { IonButton, IonIcon } from '@ionic/vue';
 import { useRouter } from 'vue-router';
 import { peopleOutline } from 'ionicons/icons';
 
+type ViewerRole = 'coRider' | 'carOwner';
+
 export interface Passenger {
   id: number;
   name: string;
@@ -60,7 +62,7 @@ export interface TripCardData {
   route: string;
   price: string;
   status: string;
-  statusVariant: 'confirmed' | 'pending' | 'completed';
+  statusVariant: 'confirmed' | 'pending' | 'completed' | 'active' | 'upcoming';
   seatsLabel?: string;
   passengers: Passenger[];
   mapVariant: 'variant-a' | 'variant-b';
@@ -69,14 +71,22 @@ export interface TripCardData {
 
 interface Props {
   trip: TripCardData;
+  viewerRole?: ViewerRole;
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  viewerRole: 'coRider'
+});
 
 const router = useRouter();
 
 const openDetails = () => {
-  router.push({ name: 'booked-trip-details', params: { id: props.trip.id } });
+  const routeName = props.viewerRole === 'carOwner' ? 'owner-trip-details' : 'booked-trip-details';
+  router.push({
+    name: routeName,
+    params: { id: props.trip.id },
+    query: { role: props.viewerRole, status: props.trip.status }
+  });
 };
 </script>
 
@@ -171,6 +181,16 @@ const openDetails = () => {
 .status-pill.is-completed {
   background: #edf0f5;
   color: #556070;
+}
+
+.status-pill.is-active {
+  background: #dff1ff;
+  color: #115a8a;
+}
+
+.status-pill.is-upcoming {
+  background: #fff0df;
+  color: #a25300;
 }
 
 .avatar-stack {

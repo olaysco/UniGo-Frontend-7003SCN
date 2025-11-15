@@ -3,7 +3,7 @@
     <ion-content class="booked-trip-page safe-area-scroll">
       <AppBackHeader title="Booking Details" subtitle="Ride confirmed" @back="goBack" />
       <div class="page-body ion-padding">
-        <section class="status-banner">
+        <section v-if="showStatusBanner" class="status-banner">
           <ion-icon :icon="checkmarkCircle" aria-hidden="true" />
           <div>
             <p class="status-title">Booking Confirmed! You're all set.</p>
@@ -90,11 +90,28 @@
             <span>Total Paid</span>
             <p>{{ booking.total }}</p>
           </div>
-          <ion-button expand="block" color="secondary" size="large" @click="viewReceipt">
+          <ion-button v-if="showReceiptButton" expand="block" color="secondary" size="large" @click="viewReceipt">
             View Receipt
           </ion-button>
-          <ion-button class="mt-4" expand="block" color="info" size="large" @click="cancelTrip">
+          <ion-button
+            v-if="showCancelButton"
+            class="mt-4"
+            expand="block"
+            color="danger"
+            size="large"
+            @click="cancelTrip"
+          >
             Cancel Trip
+          </ion-button>
+          <ion-button
+            v-if="showRateButton"
+            class="mt-4"
+            expand="block"
+            color="secondary"
+            size="large"
+            @click="rateTrip"
+          >
+            Rate Trip
           </ion-button>
         </section>
       </div>
@@ -121,7 +138,7 @@ import {
   people,
   star
 } from 'ionicons/icons';
-import { reactive } from 'vue';
+import { computed, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AppBackHeader from '@/components/AppBackHeader.vue';
 
@@ -175,6 +192,22 @@ const viewReceipt = () => {
 const cancelTrip = () => {
   const bookingId = (route.params.id as string) || 'current';
   router.push({ name: 'cancel-trip', params: { id: bookingId } });
+};
+
+const viewerRole = computed(() => (route.query.role as string) === 'carOwner' ? 'carOwner' : 'coRider');
+const tripStatus = computed(() => (route.query.status as string) || 'confirmed');
+const isCoRider = computed(() => viewerRole.value === 'coRider');
+const isPending = computed(() => tripStatus.value === 'pending');
+const isPast = computed(() => tripStatus.value === 'past');
+const hideStatusSections = computed(() => isCoRider.value && (isPending.value || isPast.value));
+
+const showStatusBanner = computed(() => !hideStatusSections.value);
+const showReceiptButton = computed(() => !hideStatusSections.value);
+const showRateButton = computed(() => isCoRider.value && isPast.value);
+const showCancelButton = computed(() => !showRateButton.value);
+
+const rateTrip = () => {
+  console.info('Open rate trip modal');
 };
 </script>
 
