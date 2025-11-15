@@ -21,15 +21,14 @@
               label="Profile Details"
               @click="openOption('profile-details')"
             />
-            <ProfileRow icon="locationOutline" label="Addresses" @click="openOption('addresses')" />
+            <ProfileRow icon="carOutline" label="Vehicles" @click="openOption('vehicles')" />
           </ul>
         </section>
 
         <section class="section">
           <p class="section-title">Services</p>
           <ul class="option-card">
-            <ProfileRow icon="cardOutline" label="Wallet" @click="openOption('wallet')" />
-            <ProfileRow icon="giftOutline" label="Referrals" @click="openOption('referrals')" />
+            <ProfileRow icon="giftOutline" label="Refer a Friend" @click="openOption('referrals')" />
           </ul>
         </section>
 
@@ -39,14 +38,6 @@
             <ProfileRow icon="cardOutline" label="FAQ & Help" @click="openOption('faq')" />
             <ProfileRow icon="giftOutline" label="Terms of Service" @click="openOption('terms-of-service')" />
           </ul>
-        </section>
-
-        <section>
-          <button class="logout-row" type="button" @click="logout">
-            <ion-icon :icon="logOutOutline" aria-hidden="true" />
-            <span>Logout</span>
-            <ion-icon :icon="chevronForward" aria-hidden="true" class="chevron" />
-          </button>
         </section>
       </main>
     </ion-content>
@@ -62,7 +53,11 @@ import router from '@/router';
 const rating = 5.0;
 
 const openOption = (key: string) => {
-  console.log(`/tabs/${key}`)
+  if (key === 'referrals') {
+    router.push('/refer-a-friend');
+    return;
+  }
+
   router.push(`/tabs/${key}`);
 };
 
