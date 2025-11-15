@@ -13,9 +13,9 @@
           <ion-label>Search</ion-label>
         </ion-tab-button>
 
-        <ion-tab-button tab="bookings" href="/tabs/bookings">
+        <ion-tab-button tab="trips" href="/tabs/trips">
           <ion-icon aria-hidden="true" :icon="calendarOutline" />
-          <ion-label>Bookings</ion-label>
+          <ion-label>Trips</ion-label>
         </ion-tab-button>
 
         <ion-tab-button tab="messages" href="/tabs/messages">

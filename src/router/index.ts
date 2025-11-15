@@ -32,8 +32,8 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('@/views/SearchPage.vue')
       },
       {
-        path: 'bookings',
-        component: () => import('@/views/BookingsPage.vue')
+        path: 'trips',
+        component: () => import('@/views/TripsPage.vue')
       },
       {
         path: 'messages',
@@ -44,18 +44,44 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('@/views/ProfilePage.vue')
       },
       {
+        path: 'profile-details',
+        component: () => import('@/views/ProfileDetailsPage.vue')
+      },
+      {
         path: 'faq',
         component: () => import('@/views/FaqHelpPage.vue')
+      },
+      {
+        path: 'vehicles',
+        component: () => import('@/views/ManageVehiclesPage.vue')
       },
       {
         path: 'terms-of-service',
         component: () => import('@/views/TermsOfServicePage.vue')
       },
+      {
+        path: '/booked-trip/:id',
+        name: 'booked-trip-details',
+        component: () => import('@/views/BookedTripDetailsPage.vue')
+      }
     ]
+  },
+  {
+    path: '/cancel-trip/:id?',
+    name: 'cancel-trip',
+    component: () => import('@/views/CancelTripPage.vue')
   },
   {
     path: '/create-trip',
     component: () => import('@/views/CreateTripPage.vue')
+  },
+  {
+    path: '/refer-a-friend',
+    component: () => import('@/views/ReferFriendPage.vue')
+  },
+  {
+    path: '/add-vehicle',
+    component: () => import('@/views/AddVehiclePage.vue')
   },
   {
     path: '/terms',

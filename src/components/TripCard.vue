@@ -76,7 +76,7 @@ const props = defineProps<Props>();
 const router = useRouter();
 
 const openDetails = () => {
-  router.push({ name: 'trip-details', params: { id: props.trip.id } });
+  router.push({ name: 'booked-trip-details', params: { id: props.trip.id } });
 };
 </script>
 
