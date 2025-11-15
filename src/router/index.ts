@@ -47,6 +47,10 @@ const routes: Array<RouteRecordRaw> = [
         path: 'faq',
         component: () => import('@/views/FaqHelpPage.vue')
       },
+      {
+        path: 'terms-of-service',
+        component: () => import('@/views/TermsOfServicePage.vue')
+      },
     ]
   },
   {

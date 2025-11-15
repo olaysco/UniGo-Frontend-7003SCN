@@ -1,6 +1,7 @@
 /* For information on how to create your own theme, please see:
 http://ionicframework.com/docs/theming/ */
 @import "tailwindcss";
+
 @import "tailwindcss/preflight.css" layer(base);
 
 :root {
@@ -75,6 +76,11 @@ a {
     color: var(--ion-color-secondary);
 }
 
-ion-content::part(scroll) {
+ion-content.safe-area-scroll::part(scroll) {
   padding-top: var(--ion-safe-area-top, 0);
+}
+
+html {
+	-webkit-text-size-adjust: 100%;
+	--ion-dynamic-font: var(--ion-default-dynamic-font);
 }

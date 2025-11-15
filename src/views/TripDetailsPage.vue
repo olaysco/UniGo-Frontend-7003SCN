@@ -12,7 +12,7 @@
 
         <main class="details-body">
           <section class="map-card" aria-label="Trip route preview">
-            <div class="map-visual"></div>
+            <div class="map-visual"> <img src="/map-placeholder.png" alt=""></div>
             <div class="route-chip">
               <ion-icon :icon="navigateOutline" aria-hidden="true" />
               <span>{{ trip.route.origin }} → {{ trip.route.destination }}</span>
@@ -225,14 +225,7 @@ const requestSeat = () => {
   background: radial-gradient(circle at 20% 30%, #e8f8ef 0%, #d4ebff 40%, #c0dcff 75%);
 }
 
-.map-visual::after,
-.map-visual::before {
-  content: '';
-  position: absolute;
-  inset: 20px;
-  border: 2px dashed rgba(15, 23, 42, 0.2);
-  border-radius: var(--box-radius-lg);
-}
+
 
 .map-visual::before {
   inset: 40px;
