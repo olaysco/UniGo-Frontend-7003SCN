@@ -1,6 +1,6 @@
 <template>
   <ion-page>
-    <ion-content class="create-trip-content">
+    <ion-content class="create-trip-content safe-area-scroll">
       <AppBackHeader title="Create a New Trip" subtitle="Create Trip" @back="goBack" />
       <div class="page-inner">
         <section class="section-block">
@@ -58,12 +58,11 @@
                 class="text-input" min="0" step="0.5" />
             </div>
           </div>
+
+          <ion-button expand="block" size="large" color="secondary" class="mt-6">Create Trip</ion-button>
         </section>
       </div>
 
-      <div class="action-bar">
-    <ion-button expand="block" size="large" color="secondary">Create Trip</ion-button>
-      </div>
     </ion-content>
   </ion-page>
 </template>
@@ -108,10 +107,6 @@ const goBack = () => {
 <style scoped>
 .create-trip-content {
   --background: #f4f5f8;
-}
-
-.create-trip-content::part(scroll) {
-  padding-top: 0;
 }
 
 .page-inner {

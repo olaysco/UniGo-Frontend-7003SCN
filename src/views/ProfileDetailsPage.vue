@@ -122,9 +122,9 @@ const router = useRouter();
 
 const profile = reactive({
   name: 'Olayiwola Odunsi',
-  phone: '08113376030',
+  phone: '0993376530',
   phoneVerified: true,
-  email: 'olayiwolaodunsi@gmail.com',
+  email: 'aiandfact@systems.com',
   birthDate: ''
 });
 
