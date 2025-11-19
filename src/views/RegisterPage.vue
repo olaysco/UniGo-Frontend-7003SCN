@@ -38,7 +38,7 @@
                     id="fullName"
                     v-model="fullName"
                     type="text"
-                    placeholder="Enter your full name"
+                    placeholder="Enter your name!"
                     autocomplete="name"
                     class="text-input"
                     clear-input
