@@ -7,9 +7,15 @@
         <section class="form-section">
           <p class="field-label">Vehicle Image</p>
           <label class="upload-card" for="vehicle-image-input">
-            <ion-icon :icon="cameraOutline" aria-hidden="true" />
-            <p><strong>Click to upload</strong> or drag and drop</p>
-            <small>SVG, PNG, JPG (max. 800×400px)</small>
+            <template v-if="previewImage">
+              <img :src="previewImage" alt="Vehicle preview" class="upload-preview" />
+              <p class="upload-hint">Tap to replace photo</p>
+            </template>
+            <template v-else>
+              <ion-icon :icon="cameraOutline" aria-hidden="true" />
+              <p><strong>Click to upload</strong> or drag and drop</p>
+              <small>SVG, PNG, JPG (max. 800×400px)</small>
+            </template>
             <input id="vehicle-image-input" type="file" accept="image/*" @change="handleFile" hidden />
           </label>
         </section>
@@ -47,7 +53,7 @@
 <script setup lang="ts">
 import { IonButton, IonContent, IonIcon, IonInput, IonPage } from '@ionic/vue';
 import { cameraOutline } from 'ionicons/icons';
-import { computed, reactive } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import AppBackHeader from '@/components/AppBackHeader.vue';
 
@@ -63,6 +69,8 @@ const form = reactive({
   image: ''
 });
 
+const previewImage = ref('');
+
 const isValid = computed(() => form.make.trim() && form.model.trim() && form.plate.trim());
 
 const goBack = () => {
@@ -71,9 +79,17 @@ const goBack = () => {
 
 const handleFile = (event: Event) => {
   const input = event.target as HTMLInputElement;
-  if (input.files?.length) {
-    form.image = input.files[0].name;
-  }
+  const file = input.files?.[0];
+  if (!file) return;
+
+  form.image = file.name;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    previewImage.value = typeof reader.result === 'string' ? reader.result : '';
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
 };
 
 const saveVehicle = () => {
@@ -111,6 +127,20 @@ ion-content.manage-vehicle-page {
   padding: 28px;
   text-align: center;
   color: #7a859c;
+}
+
+.upload-preview {
+  width: 100%;
+  max-height: 200px;
+  object-fit: cover;
+  border-radius: 18px;
+  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.15);
+}
+
+.upload-hint {
+  margin: 8px 0 0;
+  font-weight: 600;
+  color: #0f1b2b;
 }
 
 .upload-card ion-icon {

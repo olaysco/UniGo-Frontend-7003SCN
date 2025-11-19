@@ -4,16 +4,19 @@
       <AppBackHeader title="My Vehicles" @back="goBack" />
 
       <section class="vehicle-list">
-        <article v-for="vehicle in vehicles" :key="vehicle.id" class="vehicle-card">
+        <button
+          v-for="vehicle in vehicles"
+          :key="vehicle.id"
+          type="button"
+          class="vehicle-card"
+          @click="openVehicleOptions(vehicle)"
+        >
           <img class="vehicle-image" :src="vehicle.image" :alt="vehicle.name" />
           <div class="vehicle-details">
             <h2>{{ vehicle.name }}</h2>
             <p>{{ vehicle.plate }} - {{ vehicle.color }}</p>
           </div>
-          <button class="icon-button" type="button" aria-label="Vehicle actions" @click="openVehicleOptions(vehicle)">
-            <ion-icon :icon="ellipsisVertical" aria-hidden="true" />
-          </button>
-        </article>
+        </button>
       </section>
 
       <ion-fab slot="fixed" vertical="bottom" horizontal="end">
@@ -30,7 +33,8 @@
       class="vehicle-pane"
       @didDismiss="closeVehiclePane"
     >
-      <div v-if="selectedVehicle" class="pane-content ion-padding">
+      <ion-content>
+        <div v-if="selectedVehicle" class="pane-content ion-padding">
         <div class="vehicle-media">
           <img :src="previewImage || selectedVehicle.image" :alt="selectedVehicle.name" />
           <ion-button class="media-edit" size="small" fill="solid" color="dark" @click="handleEditImage">
@@ -86,13 +90,14 @@
         </div>
         <button class="delete-button" type="button" @click="handleRemoveVehicle">Delete Vehicle</button>
       </div>
+      </ion-content>
     </ion-modal>
   </ion-page>
 </template>
 
 <script setup lang="ts">
 import { IonButton, IonContent, IonFab, IonFabButton, IonIcon, IonInput, IonModal, IonPage } from '@ionic/vue';
-import { add, createOutline, ellipsisVertical } from 'ionicons/icons';
+import { add, createOutline } from 'ionicons/icons';
 import { reactive, ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import AppBackHeader from '@/components/AppBackHeader.vue';
@@ -218,6 +223,20 @@ ion-content.vehicles-page {
   gap: 14px;
   box-shadow: 0 12px 30px rgba(78, 99, 120, 0.12);
   border: 1px solid rgba(15, 27, 43, 0.04);
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.vehicle-card:focus-visible {
+  outline: 2px solid #1fb16a;
+  outline-offset: 2px;
+}
+
+.vehicle-card:active {
+  transform: translateY(1px);
+  box-shadow: 0 8px 20px rgba(78, 99, 120, 0.12);
 }
 
 .vehicle-image {
@@ -242,22 +261,6 @@ ion-content.vehicles-page {
   margin: 4px 0 0;
   color: #766d6c;
   font-size: 0.95rem;
-}
-
-.icon-button {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  border: none;
-  background: transparent;
-  color: #1b1b1b;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.icon-button ion-icon {
-  font-size: 1.4rem;
 }
 
 ion-fab {

@@ -51,7 +51,7 @@ import { useRouter } from 'vue-router';
 import { IonContent, IonFab, IonFabButton, IonIcon, IonPage } from '@ionic/vue';
 import { add, personCircleOutline } from 'ionicons/icons';
 import BrandMark from '@/components/BrandMark.vue';
-import TripCard, { TripCardData } from '@/components/TripCard.vue';
+import TripCard, { RoleOption, TripCardData } from '@/components/TripCard.vue';
 
 const userName = 'Alex';
 const greeting = computed(() => `Good morning, ${userName}!`);
@@ -72,44 +72,50 @@ const openProfile = () => {
   router.push('/tabs/profile');
 };
 
+const role = ref<RoleOption>('coRider');
+
+
 const trips = ref<TripCardData[]>([
   {
     id: 1,
     datetimeLabel: 'Today, 18:30',
     route: 'Coventry University to Leamington Spa',
     price: '£3.50',
-    status: 'Confirmed',
+    status: 'confirmed',
     statusVariant: 'confirmed',
     passengers: [
       { id: 1, name: 'Emma Clarke', initials: 'EC', color: '#fdebd5' },
       { id: 2, name: 'Liam Patel', initials: 'LP', color: '#d9e8fb' }
     ],
     mapVariant: 'variant-a',
-    state: 'active'
+    state: 'active',
+    role: role.value
   },
   {
     id: 2,
     datetimeLabel: 'Tomorrow, 09:00',
     route: 'Warwick University to Birmingham',
     price: '£4.00',
-    status: 'Pending',
+    status: 'pending',
     statusVariant: 'pending',
     passengers: [],
     seatsLabel: '1/3 Seats',
     mapVariant: 'variant-b',
-    state: 'active'
+    state: 'active',
+    role: role.value
   },
   {
     id: 3,
     datetimeLabel: 'Monday, 08:00',
     route: 'Coventry to London',
     price: '£12.00',
-    status: 'Completed',
+    status: 'past',
     statusVariant: 'completed',
     passengers: [],
     seatsLabel: 'Full ride',
     mapVariant: 'variant-a',
-    state: 'past'
+    state: 'past',
+    role: role.value
   }
 ]);
 
