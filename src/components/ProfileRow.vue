@@ -18,12 +18,14 @@ import {
   chevronForward,
   giftOutline,
   locationOutline,
-  personCircleOutline
+  personCircleOutline,
+  walletOutline
 } from 'ionicons/icons';
 
-type IconKey = 'personCircleOutline' | 'locationOutline' | 'cardOutline' | 'giftOutline' | 'carOutline';
+type IconKey = 'personCircleOutline' | 'walletOutline' | 'locationOutline' | 'cardOutline' | 'giftOutline' | 'carOutline';
 
 const iconMap: Record<IconKey, string> = {
+  walletOutline,
   personCircleOutline,
   locationOutline,
   cardOutline,

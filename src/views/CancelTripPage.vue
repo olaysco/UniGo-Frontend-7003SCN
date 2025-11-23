@@ -63,9 +63,9 @@ const router = useRouter();
 
 const trip = reactive({
   origin: 'Coventry University',
-  destination: 'Birmingham New Street',
-  date: 'Wed, 25 Oct',
-  time: '08:30 AM'
+  destination: 'Leamington Spa',
+  date: 'Wed, 28 Oct',
+  time: '18:30 AM'
 });
 
 const isModalOpen = ref(false);

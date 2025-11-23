@@ -27,6 +27,17 @@
         </section>
 
         <section class="section">
+          <p class="section-title">E-Wallet</p>
+          <ul class="option-card">
+            <ProfileRow
+              icon="walletOutline"
+              label="E-Wallet Balance"
+              @click="openOption('wallet')"
+            />
+            </ul>
+        </section>
+
+        <section class="section">
           <p class="section-title">Services</p>
           <ul class="option-card">
             <ProfileRow icon="giftOutline" label="Refer a Friend" @click="openOption('referrals')" />

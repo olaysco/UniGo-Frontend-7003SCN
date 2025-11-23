@@ -78,9 +78,9 @@ const role = ref<RoleOption>('coRider');
 const trips = ref<TripCardData[]>([
   {
     id: 1,
-    datetimeLabel: 'Today, 18:30',
+    datetimeLabel: 'Monday, 28 October, 18:30',
     route: 'Coventry University to Leamington Spa',
-    price: '£3.50',
+    price: '£4.55',
     status: 'confirmed',
     statusVariant: 'confirmed',
     passengers: [
@@ -93,7 +93,7 @@ const trips = ref<TripCardData[]>([
   },
   {
     id: 2,
-    datetimeLabel: 'Tomorrow, 09:00',
+    datetimeLabel: 'Tuesday, 29 October, 09:00',
     route: 'Warwick University to Birmingham',
     price: '£4.00',
     status: 'pending',
