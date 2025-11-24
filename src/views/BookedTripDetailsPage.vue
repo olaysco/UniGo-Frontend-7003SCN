@@ -207,7 +207,9 @@ const showRateButton = computed(() => isCoRider.value && isPast.value);
 const showCancelButton = computed(() => !showRateButton.value);
 
 const rateTrip = () => {
-  console.info('Open rate trip modal');
+  //console.info('Open rate trip modal');
+  const bookingId = (route.params.id as string) || 'current';
+  router.push({ name: 'rate-trip', params: { id: bookingId } });
 };
 </script>
 

@@ -50,7 +50,7 @@
         </div>
 
         <ion-footer class="footer-button">
-          <ion-button expand="block" class="button-done">Done</ion-button>
+          <ion-button expand="block" size="large" class="button-done">Done</ion-button>
         </ion-footer>
 
       </main>
@@ -66,6 +66,8 @@ import AppBackHeader from '@/components/AppBackHeader.vue';
 import { add } from 'ionicons/icons';
 
 const router = useRouter();
+
+// get from API
 const balance = "£15.70";
 
 const amounts = [
@@ -106,7 +108,16 @@ const goBack = () => {
 
 <style scoped>
 ion-content.wallet-page {
-   --background: #f8f9fb;
+    --background: #f8f9fb;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem; 
+    text-align: center;
+    height: 100vh;             
+    width: 100%;
+    padding: 2rem;
 }
 
 .details-body {
@@ -121,6 +132,7 @@ ion-content.wallet-page {
   border-radius: 22px;
   padding: 18px;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+  text-align: left
 }
 
 .card-label {
@@ -136,10 +148,11 @@ ion-content.wallet-page {
 }
 
 .title {
-    font-size: 25px;
-    font-weight: 700;
-    color: #0f1b2b;
-    margin-top: 20px;
+  font-size: 25px;
+  font-weight: 700;
+  color: #0f1b2b;
+  margin-top: 20px;
+  text-align: left
 }
 
 .amount-row {

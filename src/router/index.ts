@@ -87,6 +87,11 @@ const routes: Array<RouteRecordRaw> = [
       component: () => import('@/views/CancelTripUnavailablePage.vue')
   },
   {
+    path: '/rate-trip/:id?',
+    name: 'rate-trip',
+      component: () => import('@/views/RatingPage.vue')
+  },
+  {
     path: '/create-trip',
     component: () => import('@/views/CreateTripPage.vue')
   },

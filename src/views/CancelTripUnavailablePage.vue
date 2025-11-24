@@ -1,11 +1,8 @@
 <template>
     <ion-page>
-        <ion-content>
-            
+        <ion-content class="cancel-unavailable-page" :fullscreen="true" :scroll-y="false">
+          <AppBackHeader title="" @back="goBack"/> 
             <div class="page-body ion-padding">
-                <ion-button class="icon-button" type="button" aria-label="Go back" @click="goBack">
-                    <ion-icon :icon="chevronBackOutline" aria-hidden="true" />
-                 </ion-button>
 
                 <div class="error-icon">
                     <ion-icon :icon="closeCircle" size="large"></ion-icon>
@@ -71,6 +68,7 @@ import AppBackHeader from '@/components/AppBackHeader.vue';
 
 const router = useRouter();
 
+// TODO: fetch data from database
 const booking = reactive({
     date: 'Monday, 28 October',
     departure: '18:30',
@@ -92,31 +90,16 @@ const goBack = () => {
 </script>
 
 <style scoped>
-.icon-button {
-    position: absolute;
-    --width: 44px;
-    --height: 44px;
-    --border-radius: 14px;
-    --border: none;
-    --background: #ffffff;
-    --box-shadow: 0 16px 32px rgba(15, 23, 42, 0.12);
-    --display: inline-flex;
-    --align-items: center;
-    --justify-content: center;
-    --color: #111b2b;
-    top: 20px;      
-    left: 20px;
+ion-content.cancel-unavailable-page {
+  --background: #f8f9fb;
 }
-
 
 .page-body {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2rem 1rem; 
-  text-align: center;
-  height: 100vh;             
+  text-align: center;          
   width: 100%;
   padding: 2rem;
 }
