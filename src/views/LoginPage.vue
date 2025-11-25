@@ -13,7 +13,7 @@
               <p class="text-base text-slate-500">Sign in to continue your journey.</p>
             </div>
 
-            <form class="space-y-5">
+            <form class="space-y-5" @submit.prevent="handleLogin">
               <div class="form-field">
                 <label for="login-email">Email Address</label>
                 <div class="input-shell" :class="{ success: emailValid }">
@@ -55,8 +55,14 @@
                 <button type="button" class="text-sm font-semibold text-emerald-600">Forgot password?</button>
               </div>
 
-              <ion-button expand="block" class="login-btn h-14 text-white" @click="handleLogin">
-                Log In
+              <ion-button
+                type="submit"
+                expand="block"
+                class="login-btn h-14 text-white"
+                :disabled="!canSubmit || loading"
+              >
+                <ion-spinner v-if="loading" name="crescent" class="mr-2" />
+                <span>{{ loading ? 'Signing in...' : 'Log In' }}</span>
               </ion-button>
 
               <div class="or-divider">
@@ -87,31 +93,85 @@
         </div>
       </div>
     </ion-content>
+    <ion-toast
+      :is-open="toastOpen"
+      :message="toastMessage"
+      duration="2500"
+      :color="toastColor"
+      @didDismiss="closeToast"
+    />
   </ion-page>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import BrandMark from '@/components/BrandMark.vue';
-import { IonButton, IonContent, IonIcon, IonInput, IonPage } from '@ionic/vue';
+import { IonButton, IonContent, IonIcon, IonInput, IonPage, IonSpinner, IonToast } from '@ionic/vue';
 import { checkmarkCircle, eye, eyeOff } from 'ionicons/icons';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
+import { ApiError } from '@/services/apiClient';
+import { useUserStore } from '@/stores/userStore';
+import { useToast } from '@/composables/useToast';
 
 const email = ref('');
 const password = ref('');
 const passwordVisible = ref(false);
 const passwordTouched = ref(false);
+const loading = ref(false);
+const { toastMessage, toastOpen, toastColor, showToast, closeToast } = useToast('danger');
 const router = useRouter();
+const route = useRoute();
+const userStore = useUserStore();
+const redirectPath = computed(() => {
+  const redirectParam = route.query.redirect;
+  if (typeof redirectParam === 'string' && redirectParam.startsWith('/')) {
+    return redirectParam;
+  }
+  return '/tabs/home';
+});
 
 const emailValid = computed(() => /.+@.+\..+/.test(email.value));
 const isPasswordValid = computed(() => password.value.length >= 8);
+const canSubmit = computed(() => emailValid.value && isPasswordValid.value);
 
 const togglePassword = () => {
   passwordVisible.value = !passwordVisible.value;
 };
 
-const handleLogin = () => {
-  router.push('/tabs/home');
+const handleLogin = async () => {
+  if (loading.value) {
+    return;
+  }
+
+  passwordTouched.value = true;
+
+  if (!canSubmit.value) {
+    showErrorToast('Enter a valid email and password to continue.');
+    return;
+  }
+
+  loading.value = true;
+
+  try {
+    await userStore.login({
+      email: email.value.trim().toLowerCase(),
+      password: password.value
+    });
+    await router.replace(redirectPath.value);
+  } catch (error) {
+    console.error('Login failed', error);
+    if (error instanceof ApiError && error.status === 401) {
+      showErrorToast('The username or password you entered is incorrect.');
+    } else {
+      showErrorToast('Unable to sign in right now. Please try again.');
+    }
+  } finally {
+    loading.value = false;
+  }
+};
+
+const showErrorToast = (message: string) => {
+  showToast(message, 'danger');
 };
 </script>
 
