@@ -125,10 +125,12 @@ import {
   trashOutline
 } from 'ionicons/icons';
 import AppBackHeader from '@/components/AppBackHeader.vue';
+import { useUserStore } from '@/stores/userStore';
 
 type EditableFieldKey = 'name' | 'phone' | 'email' | 'birthDate';
 
 const router = useRouter();
+const userStore = useUserStore();
 
 const profile = reactive({
   name: 'Olayiwola Odunsi',
@@ -207,7 +209,8 @@ const handleModalDismiss = () => {
 };
 
 const handleSignOut = () => {
-  console.info('Sign out tapped');
+  userStore.logout();
+  router.replace('/login');
 };
 
 const handleDelete = () => {

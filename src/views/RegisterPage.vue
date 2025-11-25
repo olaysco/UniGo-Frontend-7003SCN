@@ -30,7 +30,7 @@
               </div>
             </div>
 
-            <form class="space-y-5">
+            <form class="space-y-5" @submit.prevent="handleRegister">
               <div class="form-field">
                 <label for="fullName">Full Name</label>
                 <div class="input-shell">
@@ -81,7 +81,7 @@
 
               <div class="form-field">
                 <label for="phone">Phone Number</label>
-                <div class="input-shell" :class="{ error: !isPhoneValid }">
+                <div class="input-shell" :class="{ error: phoneTouched && !isPhoneValid }">
                   <ion-input
                     id="phone"
                     v-model="phone"
@@ -103,8 +103,14 @@
                 <button type="button" class="text-emerald-600 font-medium">Terms of Service</button>.
               </p>
 
-              <ion-button expand="block" class="register-btn h-14 text-white">
-                Register
+              <ion-button
+                type="submit"
+                expand="block"
+                class="register-btn h-14 text-white"
+                :disabled="!canSubmit || loading"
+              >
+                <ion-spinner v-if="loading" name="crescent" class="mr-2" />
+                <span>{{ loading ? 'Creating account...' : 'Register' }}</span>
               </ion-button>
 
               <p class="text-center text-base text-slate-500">
@@ -116,28 +122,92 @@
         </div>
       </div>
     </ion-content>
+    <ion-toast
+      :is-open="toastOpen"
+      :message="toastMessage"
+      :duration="TOAST_DURATION"
+      :color="toastColor"
+      @didDismiss="closeToast"
+    />
+    <ion-loading :is-open="navbarLoading" message="Login to continue" />
   </ion-page>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import BrandMark from '@/components/BrandMark.vue';
-import { IonButton, IonContent, IonIcon, IonInput, IonPage } from '@ionic/vue';
-import { car, checkmarkCircle, eye, eyeOff } from 'ionicons/icons';
+import { IonButton, IonContent, IonIcon, IonInput, IonLoading, IonPage, IonSpinner, IonToast } from '@ionic/vue';
+import { checkmarkCircle, eye, eyeOff } from 'ionicons/icons';
+import { useRouter } from 'vue-router';
+import { useToast } from '@/composables/useToast';
+import { register as registerUser, UserType } from '@/services/userService';
+import { ApiError } from '@/services/apiClient';
 
 const role = ref<'owner' | 'rider'>('owner');
 const fullName = ref('');
-const email = ref('user@example.com');
+const email = ref('');
 const password = ref('');
 const passwordVisible = ref(false);
 const phone = ref('');
-const phoneTouched = ref(true);
+const phoneTouched = ref(false);
+const loading = ref(false);
+const router = useRouter();
+const { toastMessage, toastOpen, toastColor, showToast, closeToast } = useToast('danger');
+const selectedUserType = computed(() =>
+  role.value === 'owner' ? UserType.CAR_OWNER : UserType.CO_RIDER
+);
+const TOAST_DURATION = 2500;
 
 const emailValid = computed(() => /.+@.+\..+/.test(email.value));
 const isPhoneValid = computed(() => phone.value.replace(/\D/g, '').length >= 10);
+const isPasswordValid = computed(() => password.value.length >= 8);
+const canSubmit = computed(() => {
+  return fullName.value.trim().length > 0 && emailValid.value && isPasswordValid.value;
+});
 
 const togglePassword = () => {
   passwordVisible.value = !passwordVisible.value;
+};
+
+const navbarLoading = ref(false);
+
+const handleRegister = async () => {
+  if (loading.value || navbarLoading.value) {
+    return;
+  }
+
+  if (!canSubmit.value) {
+    showToast('Please complete all fields correctly before continuing.', 'danger');
+    return;
+  }
+
+  loading.value = true;
+
+  try {
+    await registerUser({
+      name: fullName.value.trim(),
+      email: email.value.trim().toLowerCase(),
+      password: password.value,
+      type: selectedUserType.value
+    });
+    showToast('Account registration successful.', 'success');
+    setTimeout(() => {
+      navbarLoading.value = true;
+      router.replace('/login').finally(() => {
+        navbarLoading.value = false;
+      });
+    }, TOAST_DURATION);
+  } catch (error) {
+    if (error instanceof ApiError) {
+      showToast(error.message || 'Unable to complete registration.', 'danger');
+    } else if (error instanceof Error) {
+      showToast(error.message, 'danger');
+    } else {
+      showToast('Unable to complete registration. Please try again.', 'danger');
+    }
+  } finally {
+    loading.value = false;
+  }
 };
 </script>
 
