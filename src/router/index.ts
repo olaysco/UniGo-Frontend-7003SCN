@@ -151,24 +151,28 @@ const router = createRouter({
 
 const userStore = useUserStore(pinia);
 
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to) => {
   const meta = to.meta as AuthRouteMeta;
 
   if (meta.requiresAuth && !userStore.isAuthenticated) {
-    const redirectLocation =
-      to.fullPath && to.fullPath !== '/login'
-        ? { path: '/login', query: { redirect: to.fullPath } }
-        : { path: '/login' };
-    next(redirectLocation);
-    return;
+    return to.fullPath && to.fullPath !== '/login'
+      ? { path: '/login', query: { redirect: to.fullPath } }
+      : { path: '/login' };
+  }
+
+  if (userStore.isAuthenticated && !userStore.profileLoaded) {
+    try {
+      await userStore.fetchProfile();
+    } catch (error) {
+      console.error('Failed to load profile', error);
+    }
   }
 
   if (meta.requiresGuest && userStore.isAuthenticated) {
-    next('/tabs/home');
-    return;
+    return '/tabs/home';
   }
 
-  next();
+  return true;
 });
 
 export default router

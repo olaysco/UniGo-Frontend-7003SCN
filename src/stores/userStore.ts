@@ -7,6 +7,7 @@ import {
   login as loginRequest,
   persistSession
 } from '@/services/userService';
+import { ApiError } from '@/services/apiClient';
 
 interface UserState {
   session: AuthSession | null;
@@ -52,10 +53,20 @@ export const useUserStore = defineStore('user', {
         return this.profile;
       }
 
-      const response = await fetchProfileRequest(this.session.token);
-      this.profile = response.user ?? null;
-      this.profileLoaded = true;
-      return this.profile;
+      try {
+        const response = await fetchProfileRequest(this.session.token);
+        this.profile = response.user ?? null;
+        this.profileLoaded = true;
+        return this.profile;
+      } catch (error) {
+        this.profileLoaded = false;
+
+        if (error instanceof ApiError && error.status === 401) {
+          this.logout();
+        }
+
+        throw error;
+      }
     },
     logout() {
       this.setSession(null);

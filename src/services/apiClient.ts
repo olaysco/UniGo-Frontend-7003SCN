@@ -82,7 +82,18 @@ export async function apiRequest<TResponse = unknown>(
     init.body = isJsonBody(body) ? JSON.stringify(body) : (body as BodyInit);
   }
 
-  const response = await fetch(url, init);
+  let response: Response;
+  try {
+    response = await fetch(url, init);
+  } catch (error) {
+    let message = error instanceof Error ? error.message : 'Network request failed';
+    if (/load failed/i.test(message)) {
+      message = 'Unable to reach the server. Check your connection or API URL.';
+    }
+    // eslint-disable-next-line no-console
+    console.error('API request failed before reaching server', { url, error });
+    throw new ApiError(message || 'Network request failed', 0, null);
+  }
 
   const contentType = response.headers.get('content-type');
   const isJson = contentType?.includes('application/json');
@@ -93,6 +104,13 @@ export async function apiRequest<TResponse = unknown>(
       (typeof payload === 'object' && payload !== null && 'message' in payload && typeof payload.message === 'string'
         ? payload.message
         : response.statusText) || 'Request failed';
+    // eslint-disable-next-line no-console
+    console.error('API request returned an error response', {
+      url,
+      status: response.status,
+      message: errorMessage,
+      payload
+    });
     throw new ApiError(errorMessage, response.status, (payload as TResponse) ?? null);
   }
 

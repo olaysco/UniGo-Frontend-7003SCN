@@ -5,6 +5,18 @@ export interface LoginCredentials {
   password: string;
 }
 
+export enum UserType {
+  CAR_OWNER = 1,
+  CO_RIDER = 2
+}
+
+export interface RegisterPayload {
+  name: string;
+  email: string;
+  password: string;
+  type: UserType;
+}
+
 export interface UserProfile {
   id: number;
   name: string | null;
@@ -146,5 +158,12 @@ export const fetchProfile = (token: string): Promise<ProfileResponse> => {
   return apiRequest<ProfileResponse>('/auth/profile', {
     method: 'GET',
     token
+  });
+};
+
+export const register = (payload: RegisterPayload) => {
+  return apiRequest('/auth/register', {
+    method: 'POST',
+    body: payload
   });
 };
