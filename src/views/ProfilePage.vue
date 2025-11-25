@@ -51,6 +51,7 @@
             <ProfileRow icon="giftOutline" label="Terms of Service" @click="openOption('terms-of-service')" />
           </ul>
         </section>
+
       </main>
     </ion-content>
   </ion-page>
@@ -58,7 +59,7 @@
 
 <script setup lang="ts">
 import { IonContent, IonIcon, IonPage } from '@ionic/vue';
-import { chevronForward, logOutOutline, star } from 'ionicons/icons';
+import { chevronForward, star } from 'ionicons/icons';
 import AppBackHeader from '@/components/AppBackHeader.vue';
 import ProfileRow from '@/components/ProfileRow.vue';
 import router from '@/router';
@@ -162,22 +163,4 @@ const logout = () => {
   box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
 }
 
-.logout-row {
-  width: 100%;
-  border: none;
-  background: #ffffff;
-  border-radius: 28px;
-  padding: 18px 22px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  color: #e7473c;
-  font-weight: 700;
-  box-shadow: 0 18px 40px rgba(231, 71, 60, 0.15);
-}
-
-.logout-row .chevron {
-  color: rgba(17, 28, 42, 0.35);
-}
 </style>
