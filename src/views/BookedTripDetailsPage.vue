@@ -149,15 +149,15 @@ const booking = reactive({
   status: 'Paid via card',
   reference: '#UN-10452',
   date: 'Monday, 28 October',
-  departure: '08:00',
-  arrival: '09:15',
+  departure: '18:30',
+  arrival: '18:54',
   pickup: {
     title: 'Coventry University',
     address: 'Priory St, Coventry CV1 5FB'
   },
   dropoff: {
-    title: 'Birmingham New St',
-    address: 'Station St, Birmingham B2 4QA'
+    title: 'Leamington Spa',
+    address: 'Royal Leamington Spa, Warwick CV34 6RH'
   },
   vehicle: 'Blue Ford Focus',
   note: '"No smoking, please. Happy to chat or listen to music!"',
@@ -169,11 +169,11 @@ const booking = reactive({
   },
   seats: 1,
   summary: [
-    { label: 'Fare', value: '£5.00' },
+    { label: 'Fare', value: '£3.50' },
     { label: 'Booking fee', value: '£0.75' },
     { label: 'Coverage', value: '£0.30' }
   ],
-  total: '£6.05',
+  total: '£4.55',
   mapImage: './map-placeholder.png'
 });
 
@@ -207,7 +207,9 @@ const showRateButton = computed(() => isCoRider.value && isPast.value);
 const showCancelButton = computed(() => !showRateButton.value);
 
 const rateTrip = () => {
-  console.info('Open rate trip modal');
+  //console.info('Open rate trip modal');
+  const bookingId = (route.params.id as string) || 'current';
+  router.push({ name: 'rate-trip', params: { id: bookingId } });
 };
 </script>
 
