@@ -52,9 +52,19 @@ import { IonContent, IonFab, IonFabButton, IonIcon, IonPage } from '@ionic/vue';
 import { add, personCircleOutline } from 'ionicons/icons';
 import BrandMark from '@/components/BrandMark.vue';
 import TripCard, { RoleOption, TripCardData } from '@/components/TripCard.vue';
+import { useUserStore } from '@/stores/userStore';
 
-const userName = 'Alex';
-const greeting = computed(() => `Good morning, ${userName}!`);
+const userStore = useUserStore();
+const userFirstName = computed(() => {
+  const sourceName = userStore.profile?.name || userStore.session?.user?.name;
+  if (!sourceName) {
+    return 'there';
+  }
+
+  const [first] = sourceName.trim().split(/\s+/);
+  return first || 'there';
+});
+const greeting = computed(() => `Good morning, ${userFirstName.value}!`);
 
 const tabs = [
   { id: 'active', label: 'Active' },
