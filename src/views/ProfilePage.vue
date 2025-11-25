@@ -3,10 +3,10 @@
     <ion-content class="profile-page safe-area-scroll" :fullscreen="true">
       <AppBackHeader title="Profile" @back="goBack" />
       <header class="hero">
-        <div class="avatar-shell" role="img" aria-label="Charlie Smith avatar">
-          <img src="https://i.pravatar.cc/200?img=12" alt="Charlie Smith" />
+        <div class="avatar-shell" role="img" :aria-label="`Avatar of ${name}`">
+          <img src="https://i.pravatar.cc/200?img=12" :alt="name" />
         </div>
-        <p class="hero-name">Charlie Smith</p>
+        <p class="hero-name">{{ name }}</p>
         <div class="rating-chip">
           <ion-icon :icon="star" aria-hidden="true" />
           <span>{{ rating.toFixed(1) }}</span>
@@ -63,6 +63,11 @@ import { chevronForward, star } from 'ionicons/icons';
 import AppBackHeader from '@/components/AppBackHeader.vue';
 import ProfileRow from '@/components/ProfileRow.vue';
 import router from '@/router';
+import { useUserStore } from '@/stores/userStore';
+import { computed } from 'vue';
+const userStore = useUserStore();
+
+const name = computed(() => `${userStore.profile?.name || userStore.session?.user?.name}`);
 
 const rating = 5.0;
 
