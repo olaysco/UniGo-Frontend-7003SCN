@@ -15,6 +15,15 @@ UniGo is an Ionic Vue application packaged with Capacitor for native builds. The
 3. Run the dev server: `npm run dev` (served at `http://localhost:5173`).
 4. Build production assets: `npm run build`; preview with `npm run preview`.
 
+## Configuration
+Copy `.env.example` to `.env` and provide the API base URL exposed to the browser via Vite:
+
+```
+VITE_API_BASE_URL=https://api.example.com
+```
+
+The authentication service uses this URL for `/auth/login` requests and every other API module should rely on the same helper.
+
 ## Project Layout
 ```
 src/           # Ionic Vue app (components, views, router, theme)
