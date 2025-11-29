@@ -167,3 +167,11 @@ export const register = (payload: RegisterPayload) => {
     body: payload
   });
 };
+
+export const updateProfile = (token: string, id: number, data: Partial<UserProfile>) => {
+  return apiRequest<UserProfile>(`/users/${id}`, {
+    method: 'PUT',
+    body: data,
+    token
+  });
+};

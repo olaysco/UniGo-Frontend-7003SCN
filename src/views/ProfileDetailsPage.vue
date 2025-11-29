@@ -7,7 +7,7 @@
         <section class="card">
           <p class="card-label">Account name</p>
           <div class="card-row">
-            <p class="card-value">{{ profile.name }}</p>
+            <p class="card-value">{{ userStore.profile?.name }}</p>
             <button class="ghost-button" type="button" aria-label="Edit name" @click="openEditor('name')">
               <ion-icon :icon="createOutline" aria-hidden="true" />
             </button>
@@ -18,13 +18,13 @@
           <p class="card-label">Phone number</p>
           <div class="card-row">
             <div>
-              <p class="card-value">{{ profile.phone }}</p>
+              <p class="card-value">{{ userStore.profile?.phone_number }}</p>
               <p class="card-helper" aria-live="polite">
-                <ion-icon v-if="profile.phoneVerified" :icon="shieldCheckmarkOutline" aria-hidden="true" />
-                {{ profile.phoneVerified ? 'Verified number' : 'Unverified' }}
+                <ion-icon v-if="userStore.profile?.mobile_verify" :icon="shieldCheckmarkOutline" aria-hidden="true" />
+                {{ userStore.profile?.mobile_verify ? 'Verified number' : 'Unverified' }}
               </p>
             </div>
-            <button class="ghost-button" type="button" aria-label="Edit phone" @click="openEditor('phone')">
+            <button class="ghost-button" type="button" aria-label="Edit phone" @click="openEditor('phone_number')">
               <ion-icon :icon="createOutline" aria-hidden="true" />
             </button>
           </div>
@@ -33,7 +33,7 @@
         <section class="card">
           <p class="card-label">Email</p>
           <div class="card-row">
-            <p class="card-value">{{ profile.email }}</p>
+            <p class="card-value">{{ userStore.profile?.email }}</p>
             <button class="ghost-button" type="button" aria-label="Edit email" @click="openEditor('email')">
               <ion-icon :icon="createOutline" aria-hidden="true" />
             </button>
@@ -43,8 +43,8 @@
         <section class="card">
           <p class="card-label">Date of birth</p>
           <div class="card-row">
-            <p class="card-value">{{ profile.birthDate || '-' }}</p>
-            <button class="ghost-button" type="button" aria-label="Set date of birth" @click="openEditor('birthDate')">
+            <p class="card-value">{{ userStore.profile?.dob || '-' }}</p>
+            <button class="ghost-button" type="button" aria-label="Set date of birth" @click="openEditor('dob')">
               <ion-icon :icon="calendarOutline" aria-hidden="true" />
             </button>
           </div>
@@ -126,19 +126,15 @@ import {
 } from 'ionicons/icons';
 import AppBackHeader from '@/components/AppBackHeader.vue';
 import { useUserStore } from '@/stores/userStore';
+import { useToast } from '@/composables/useToast';
+import { updateProfile, UserProfile  } from '@/services/userService';
+import { ApiError } from '@/services/apiClient';
 
-type EditableFieldKey = 'name' | 'phone' | 'email' | 'birthDate';
+type EditableFieldKey = 'name' | 'phone_number' | 'email' | 'dob';
 
 const router = useRouter();
 const userStore = useUserStore();
-
-const profile = reactive({
-  name: 'Olayiwola Odunsi',
-  phone: '0993376530',
-  phoneVerified: true,
-  email: 'aiandfact@systems.com',
-  birthDate: ''
-});
+const { toastMessage, toastOpen, toastColor, showToast, closeToast } = useToast('danger');
 
 interface FieldMeta {
   label: string;
@@ -154,7 +150,7 @@ const fieldMeta: Record<EditableFieldKey, FieldMeta> = {
     type: 'text',
     helper: 'Use the name that appears on your ID for verification.'
   },
-  phone: {
+  phone_number: {
     label: 'Phone number',
     placeholder: 'Enter your phone number',
     type: 'tel',
@@ -166,7 +162,7 @@ const fieldMeta: Record<EditableFieldKey, FieldMeta> = {
     type: 'email',
     helper: 'Email updates include ride receipts and important alerts.'
   },
-  birthDate: {
+  dob: {
     label: 'Date of birth',
     placeholder: 'DD/MM/YYYY',
     type: 'date',
@@ -186,9 +182,9 @@ const goBack = () => {
   router.back();
 };
 
-const openEditor = async (field: EditableFieldKey) => {
+const openEditor = (field: EditableFieldKey) => {
   editingField.value = field;
-  editingValue.value = profile[field] || '';
+  editingValue.value = userStore.profile?.[field] ?? '';
   paneVisible.value = true;
 };
 
@@ -198,11 +194,40 @@ const closePane = () => {
   editingValue.value = '';
 };
 
-const saveField = () => {
+const saveField = async () => {
+  
   if (!editingField.value) return;
-  profile[editingField.value] = editingValue.value.trim();
-  closePane();
+  const fieldLabel = fieldMeta[editingField.value].label;
+
+  try {
+    const payload = {
+      [editingField.value]: editingValue.value.trim()
+    };
+
+    await updateProfile(
+      userStore.session!.token,
+      userStore.profile!.id,   
+      payload
+    );
+
+    // refresh locally from backend
+    await userStore.fetchProfile(true);
+    
+    
+    closePane();
+
+  } catch (error) {
+    if (error instanceof ApiError) {
+      showToast(error.message || `${fieldLabel} update failed.`, 'danger');
+    } else if (error instanceof Error) {
+      showToast(error.message, 'danger');
+    } else {
+      showToast('Unable to update profile. Please try again.', 'danger');
+    }
+  } 
+  showToast(`${fieldLabel} updated successfully.`, 'success');
 };
+
 
 const handleModalDismiss = () => {
   closePane();
