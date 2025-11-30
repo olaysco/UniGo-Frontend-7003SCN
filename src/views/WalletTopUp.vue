@@ -1,12 +1,15 @@
 <template>
   <ion-page>
     <ion-content class="wallet-page safe-area-scroll" :fullscreen="true">
-      <AppBackHeader title="Wallet Balance" @back="goBack" />
+      <AppBackHeader title="My Wallet" @back="goBack" />
 
       <main class="details-body">
         <!-- Display e-wallet balance -->
         <section class="card">
-          <p class="card-label">Your E-Wallet Balance</p>
+          <div class="balance-header">
+            <ion-icon :icon="wallet" class="wallet-icon"></ion-icon>
+            <p class="card-label">E-Wallet Balance</p>
+          </div>
           <p class="card-value">{{ balance }}</p>
         </section>
 
@@ -63,7 +66,7 @@ import { useRouter } from 'vue-router';
 import { ref } from 'vue';
 import { IonContent, IonIcon, IonPage } from '@ionic/vue';
 import AppBackHeader from '@/components/AppBackHeader.vue';
-import { add } from 'ionicons/icons';
+import { add, wallet } from 'ionicons/icons';
 
 const router = useRouter();
 
@@ -128,23 +131,38 @@ ion-content.wallet-page {
 }
 
 .card {
-  background: #eef0f5;
+  background: #e0f2ed;
   border-radius: 22px;
   padding: 18px;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
-  text-align: left
+  text-align: left;
+  margin-top: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
 }
 
 .card-label {
   font-size: 20px;
-  color: #7b859b;
+  color: #11ba82;
   margin-bottom: 10px;
+  font-weight: 700;
 }
 
 .card-value {
   font-size: 30px;
   font-weight: 700;
-  color: #0f1b2b;
+  color: #0f1b2b
+}
+
+.balance-header {
+  display: flex;
+  align-items: center;
+  gap: 8px; 
+}
+
+.wallet-icon {
+  color: #11ba82;
+  font-size: 25px; 
+  margin-bottom: 10px;
 }
 
 .title {
@@ -169,8 +187,7 @@ ion-content.wallet-page {
   align-items: center;
   justify-content: center;
   background: #ffffff;
-  border-radius: 0.5rem;
-  cursor: pointer;
+  border-radius: 10px;
   padding: 0 1rem;
   border: 2px solid #ffffff;
   font-weight: 700;
@@ -212,7 +229,7 @@ ion-content.wallet-page {
   width: 100%;
   padding: 0.5rem 0.75rem 0.5rem 2rem; /* space for £ */
   border: 2px solid #ccc;
-  border-radius: 0.5rem;
+  border-radius: 10px;
   font-size: 20px;
 }
 
@@ -232,10 +249,11 @@ ion-content.wallet-page {
   align-items: center;
   gap: 20px;             
   padding: 12px 16px;
-  border-radius: 8px;
+  border-radius: 15px;
   background: #ffffff;
   font-size: 16px;
   font-weight: 400;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
 }
 
 .add-icon {
