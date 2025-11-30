@@ -29,6 +29,14 @@
           <p class="section-eyebrow">Trip Details</p>
 
           <div class="form-group">
+            <ion-select label="Vehicle"  placeholder="Select Vehicle" class="input-shell text-slate-900" id="vehicle" v-model="form.vehicle_id">
+              <ion-select-option v-for="vehicle in vehicles" :key="vehicle.id" :value="vehicle.id">
+                {{ vehicle.name }}
+              </ion-select-option>
+            </ion-select>
+          </div>
+
+          <div class="form-group">
             <label class="field-label">Available Seats</label>
             <div class="seat-stepper">
               <button type="button" class="stepper-btn" :disabled="form.seats <= minSeats" @click="decreaseSeats">
@@ -43,10 +51,10 @@
 
           <div class="form-group">
             <label for="create-trip-datetime-button" class="field-label">Date &amp; Time</label>
-            <ion-datetime-button datetime="create-trip-datetime" class="date-button"></ion-datetime-button>
+            <ion-datetime-button datetime="create-trip-datetime" class="date-button" ></ion-datetime-button>
 
             <ion-modal :keep-contents-mounted="true">
-              <ion-datetime id="create-trip-datetime"></ion-datetime>
+              <ion-datetime id="create-trip-datetime" v-model="form.datetime"></ion-datetime>
             </ion-modal>
           </div>
 
@@ -59,7 +67,7 @@
             </div>
           </div>
 
-          <ion-button expand="block" size="large" color="secondary" class="mt-6">Create Trip</ion-button>
+          <ion-button expand="block" size="large" color="secondary" class="mt-6" @click="createTrip">Create Trip</ion-button>
         </section>
       </div>
 
@@ -68,20 +76,42 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue';
+import { onMounted, reactive, toRaw } from 'vue';
 import { IonButton, IonContent, IonDatetime, IonDatetimeButton, IonIcon, IonInput, IonModal, IonPage } from '@ionic/vue';
 import { addOutline, locationOutline, navigateOutline, removeOutline } from 'ionicons/icons';
 import { useRouter } from 'vue-router';
 import AppBackHeader from '@/components/AppBackHeader.vue';
+import { useVehicleStore } from '@/stores/vehicleStore';
+import { storeToRefs } from 'pinia';
+import { useToast } from '@/composables/useToast';
+const { showToast } = useToast('success');
 
 const router = useRouter();
+const vehicleStore = useVehicleStore();
+const { vehicles, loading, loaded } = storeToRefs(vehicleStore);
+
+const loadVehicles = async () => {
+  try {
+    await vehicleStore.fetchVehicles();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unable to load vehicles.';
+    showToast(message, 'danger');
+  }
+};
+
+onMounted(() => {
+  if (!loaded.value) {
+    loadVehicles();
+  }
+});
 
 const form = reactive({
   pickupPoint: '',
   destination: '',
   seats: 2,
-  datetime: '',
-  cost: ''
+  datetime: (new Date()).toISOString(),
+  cost: '',
+  vehicle_id: null as number | null,
 });
 
 const minSeats = 1;
@@ -101,6 +131,12 @@ const decreaseSeats = () => {
 
 const goBack = () => {
   router.back();
+};
+
+const createTrip = () => {
+  // Logic to create trip goes here
+  showToast('Trip created successfully!');
+  console.log('Trip created with details:', toRaw(form));
 };
 </script>
 
