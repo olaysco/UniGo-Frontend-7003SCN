@@ -72,6 +72,10 @@ http://ionicframework.com/docs/theming/ */
 
 }
 
+.has-focus.sc-ion-input-ios-h input.sc-ion-input-ios {
+	caret-color: var(--ion-color-primary-contrast);
+}
+
 a {
     color: var(--ion-color-secondary);
 }
