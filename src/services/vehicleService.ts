@@ -55,9 +55,6 @@ const resolveVehicleEntity = (payload: unknown): VehicleApiEntity | null => {
     if (maybeVehicle.data && typeof maybeVehicle.data === 'object') {
       return maybeVehicle.data;
     }
-    if (maybeVehicle.vehicle && typeof maybeVehicle.vehicle === 'object') {
-      return maybeVehicle.vehicle;
-    }
   }
 
   return payload && typeof payload === 'object' ? (payload as VehicleApiEntity) : null;
@@ -70,16 +67,6 @@ const resolveVehicleList = (payload: unknown): VehicleApiEntity[] => {
 
   if (Array.isArray(payload)) {
     return payload as VehicleApiEntity[];
-  }
-
-  if (typeof payload === 'object') {
-    const maybeResponse = payload as VehicleListResponse;
-    if (Array.isArray(maybeResponse.data)) {
-      return maybeResponse.data;
-    }
-    if (Array.isArray(maybeResponse.vehicles)) {
-      return maybeResponse.vehicles;
-    }
   }
 
   return [];

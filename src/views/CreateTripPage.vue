@@ -8,18 +8,30 @@
 
           <div class="form-group">
             <label class="field-label" for="pickup-input">Pickup Point</label>
-            <div class="input-shell">
-              <ion-input id="pickup-input" v-model="form.pickupPoint" placeholder="e.g., Coventry University"
-                class="text-input" inputmode="text" clear-input />
+            <div :class="['input-shell', { 'input-shell--error': fieldErrors.pickupPoint }]">
+                <GMapAutocomplete
+                   class="native-input sc-ion-input-ios"
+                    placeholder="e.g., Coventry University"
+                    :options="mapOptions"
+                    v-model="form.pickupPoint"
+                    @place_changed="onPickupPlaceChanged"
+                  >
+                </GMapAutocomplete>
               <ion-icon :icon="navigateOutline" aria-hidden="true" class="input-icon" />
             </div>
           </div>
 
           <div class="form-group">
             <label class="field-label" for="destination-input">Destination</label>
-            <div class="input-shell">
-              <ion-input id="destination-input" v-model="form.destination" placeholder="e.g., Birmingham New Street"
-                class="text-input" inputmode="text" clear-input />
+            <div :class="['input-shell', { 'input-shell--error': fieldErrors.destination }]">
+               <GMapAutocomplete
+                   class="native-input sc-ion-input-ios"
+                    placeholder="e.g., Coventry University"
+                    :options="mapOptions"
+                    v-model="form.destination"
+                    @place_changed="onDestinationPlaceChanged"
+                  >
+                </GMapAutocomplete>
               <ion-icon :icon="locationOutline" aria-hidden="true" class="input-icon" />
             </div>
           </div>
@@ -29,11 +41,20 @@
           <p class="section-eyebrow">Trip Details</p>
 
           <div class="form-group">
-            <ion-select label="Vehicle"  placeholder="Select Vehicle" class="input-shell text-slate-900" id="vehicle" v-model="form.vehicle_id">
-              <ion-select-option v-for="vehicle in vehicles" :key="vehicle.id" :value="vehicle.id">
-                {{ vehicle.name }}
-              </ion-select-option>
-            </ion-select>
+            <div :class="['input-shell', { 'input-shell--error': fieldErrors.vehicle_id }]">
+              <ion-select
+                label="Vehicle"
+                placeholder="Select Vehicle"
+                class="select-field"
+                id="vehicle"
+                v-model="form.vehicle_id"
+                :interface-options="selectInterfaceOptions"
+              >
+                <ion-select-option v-for="vehicle in vehicles" :key="vehicle.id" :value="String(vehicle.id)">
+                  {{ vehicle.name }}
+                </ion-select-option>
+              </ion-select>
+            </div>
           </div>
 
           <div class="form-group">
@@ -60,35 +81,54 @@
 
           <div class="form-group">
             <label class="field-label" for="price-input">Cost per passenger</label>
-            <div class="input-shell price-shell">
+            <div :class="['input-shell', 'price-shell', { 'input-shell--error': fieldErrors.cost }]">
               <span class="currency-prefix">£</span>
               <ion-input id="price-input" v-model="form.cost" type="number" inputmode="decimal" placeholder="0.00"
                 class="text-input" min="0" step="0.5" />
             </div>
           </div>
 
-          <ion-button expand="block" size="large" color="secondary" class="mt-6" @click="createTrip">Create Trip</ion-button>
+          <ion-button
+            expand="block"
+            size="large"
+            color="secondary"
+            class="mt-6"
+            :disabled="creatingTrip"
+            @click="createTrip"
+          >
+            {{ creatingTrip ? 'Creating Trip...' : 'Create Trip' }}
+          </ion-button>
         </section>
       </div>
 
     </ion-content>
+    <ion-toast
+      :is-open="toastOpen"
+      :message="toastMessage"
+      :color="toastColor"
+      duration="2500"
+      @didDismiss="closeToast"
+    />
   </ion-page>
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, toRaw } from 'vue';
-import { IonButton, IonContent, IonDatetime, IonDatetimeButton, IonIcon, IonInput, IonModal, IonPage } from '@ionic/vue';
+import { onMounted, reactive, ref, watch } from 'vue';
+import { IonButton, IonContent, IonDatetime, IonDatetimeButton, IonIcon, IonInput, IonModal, IonPage, IonSelect, IonSelectOption, IonToast, loadingController } from '@ionic/vue';
 import { addOutline, locationOutline, navigateOutline, removeOutline } from 'ionicons/icons';
 import { useRouter } from 'vue-router';
 import AppBackHeader from '@/components/AppBackHeader.vue';
 import { useVehicleStore } from '@/stores/vehicleStore';
 import { storeToRefs } from 'pinia';
 import { useToast } from '@/composables/useToast';
-const { showToast } = useToast('success');
+import { createTrip as createTripRequest, type TripPayload } from '@/services/tripService';
+import { useUserStore } from '@/stores/userStore';
+const { toastMessage, toastColor, toastOpen, showToast, closeToast } = useToast('success');
 
 const router = useRouter();
 const vehicleStore = useVehicleStore();
-const { vehicles, loading, loaded } = storeToRefs(vehicleStore);
+const userStore = useUserStore();
+const { vehicles, loaded } = storeToRefs(vehicleStore);
 
 const loadVehicles = async () => {
   try {
@@ -98,6 +138,17 @@ const loadVehicles = async () => {
     showToast(message, 'danger');
   }
 };
+
+const center = { lat: 52.347725, lng: -2.206882 };
+const mapOptions = ref({
+  componentRestrictions: { country: 'gb' },
+  bounds: {
+    north: center.lat + 0.5,
+    south: center.lat - 0.5,
+    east: center.lng + 0.5,
+    west: center.lng - 0.5,
+  }
+});
 
 onMounted(() => {
   if (!loaded.value) {
@@ -111,7 +162,74 @@ const form = reactive({
   seats: 2,
   datetime: (new Date()).toISOString(),
   cost: '',
-  vehicle_id: null as number | null,
+  vehicle_id: null as string | number | null,
+});
+
+const fieldErrors = reactive({
+  pickupPoint: false,
+  destination: false,
+  vehicle_id: false,
+  cost: false,
+});
+
+const creatingTrip = ref(false);
+const selectInterfaceOptions = { cssClass: 'create-trip-select-alert' };
+
+type AutocompletePlace = {
+  geometry?: {
+    location?: {
+      lat(): number;
+      lng(): number;
+    };
+  };
+};
+
+const getLatLngString = (place: AutocompletePlace) => {
+  console.log('Place changed:', place);
+  const lat = place?.geometry?.location?.lat();
+  const lng = place?.geometry?.location?.lng();
+
+  if (typeof lat === 'number' && typeof lng === 'number') {
+    return `${lat},${lng}`;
+  }
+
+  return '';
+};
+
+const onPickupPlaceChanged = (place: AutocompletePlace) => {
+  const coords = getLatLngString(place);
+
+  if (coords) {
+    form.pickupPoint = coords;
+    fieldErrors.pickupPoint = false;
+  } else {
+    showToast('Unable to determine pickup coordinates.', 'danger');
+    fieldErrors.pickupPoint = true;
+  }
+};
+
+const onDestinationPlaceChanged = (place: AutocompletePlace) => {
+  const coords = getLatLngString(place);
+
+  if (coords) {
+    form.destination = coords;
+    fieldErrors.destination = false;
+  } else {
+    showToast('Unable to determine destination coordinates.', 'danger');
+    fieldErrors.destination = true;
+  }
+};
+
+watch(() => form.vehicle_id, (value) => {
+  if (value !== null) {
+    fieldErrors.vehicle_id = false;
+  }
+});
+
+watch(() => form.cost, (value) => {
+  if (value !== '') {
+    fieldErrors.cost = false;
+  }
 });
 
 const minSeats = 1;
@@ -133,10 +251,79 @@ const goBack = () => {
   router.back();
 };
 
-const createTrip = () => {
-  // Logic to create trip goes here
-  showToast('Trip created successfully!');
-  console.log('Trip created with details:', toRaw(form));
+const createTrip = async () => {
+  fieldErrors.pickupPoint = !form.pickupPoint;
+  fieldErrors.destination = !form.destination;
+  fieldErrors.vehicle_id = form.vehicle_id === null;
+  fieldErrors.cost = form.cost === '';
+
+  if (
+    fieldErrors.pickupPoint ||
+    fieldErrors.destination ||
+    fieldErrors.vehicle_id ||
+    fieldErrors.cost
+  ) {
+    return;
+  }
+
+  const token = userStore.session?.token;
+  if (!token) {
+    router.push({ path: '/login' });
+    showToast('Please sign in to create a trip.', 'danger');
+    return;
+  }
+
+  const userId = userStore.session?.user?.id ?? userStore.profile?.id ?? null;
+  if (userId === null || userId === undefined) {
+    showToast('Unable to determine user information.', 'danger');
+    return;
+  }
+
+  if (creatingTrip.value) {
+    return;
+  }
+
+  const price = Number(form.cost);
+  if (!Number.isFinite(price)) {
+    fieldErrors.cost = true;
+    return;
+  }
+
+  const payload: TripPayload = {
+    vehicleId: form.vehicle_id!,
+    userId,
+    departureLocation: form.pickupPoint,
+    arrivalLocation: form.destination,
+    departureTime: form.datetime,
+    arrivalTime: form.datetime,
+    availability: form.seats,
+    price
+  };
+
+  creatingTrip.value = true;
+
+  let loader: HTMLIonLoadingElement | null = null;
+
+  try {
+    // await createTripRequest(payload, token);
+    showToast('Trip created successfully!', 'success');
+
+    loader = await loadingController.create({
+      message: 'Redirecting...'
+    });
+    await loader.present();
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    router.back();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unable to create trip.';
+    showToast(message, 'danger');
+  } finally {
+    creatingTrip.value = false;
+    if (loader) {
+      loader.dismiss();
+      loader = null;
+    }
+  }
 };
 </script>
 
@@ -190,6 +377,29 @@ const createTrip = () => {
   box-shadow:
     0 8px 18px rgba(15, 23, 42, 0.05),
     0 0 0 1px rgba(31, 177, 106, 0.18);
+}
+
+.input-shell--error {
+  border-color: #f97373;
+  box-shadow:
+    0 8px 18px rgba(15, 23, 42, 0.05),
+    0 0 0 1px rgba(249, 115, 115, 0.4);
+}
+
+.select-field {
+  flex: 1;
+  --padding-start: 0;
+  --padding-end: 0;
+  --padding-top: 0;
+  --padding-bottom: 0;
+}
+
+:global(.create-trip-select-alert .alert-button) {
+  color: #0f172a;
+}
+
+:global(.create-trip-select-alert [aria-checked='true'].sc-ion-alert-ios .alert-radio-label.sc-ion-alert-ios) {
+  color: var(--ion-color-secondary);
 }
 
 .text-input {
@@ -289,5 +499,8 @@ const createTrip = () => {
 
 ion-datetime {
   width: 100%;
+}
+.alert-wrapper.sc-ion-alert-ios {
+  --ion-color-primary: black !important;
 }
 </style>
