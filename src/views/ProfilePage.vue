@@ -4,7 +4,7 @@
       <AppBackHeader title="Profile" @back="goBack" />
       <header class="hero">
         <div class="avatar-shell" role="img" :aria-label="`Avatar of ${name}`">
-          <img src="https://i.pravatar.cc/200?img=12" :alt="name" />
+          <img src="https://t3.ftcdn.net/jpg/06/19/26/46/360_F_619264680_x2PBdGLF54sFe7kTBtAvZnPyXgvaRw0Y.jpg" :alt="name" />
         </div>
         <p class="hero-name">{{ name }}</p>
         <div class="rating-chip">

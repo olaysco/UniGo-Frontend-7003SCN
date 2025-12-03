@@ -188,6 +188,7 @@ const handleRegister = async () => {
       name: fullName.value.trim(),
       email: email.value.trim().toLowerCase(),
       password: password.value,
+      phone_number: phone.value,
       type: selectedUserType.value
     });
     showToast('Account registration successful.', 'success');

@@ -14,6 +14,7 @@ export interface RegisterPayload {
   name: string;
   email: string;
   password: string;
+  phone_number: string;
   type: UserType;
 }
 
@@ -165,5 +166,13 @@ export const register = (payload: RegisterPayload) => {
   return apiRequest('/auth/register', {
     method: 'POST',
     body: payload
+  });
+};
+
+export const updateProfile = (token: string, id: number, data: Partial<UserProfile>) => {
+  return apiRequest<UserProfile>(`/users/${id}`, {
+    method: 'PUT',
+    body: data,
+    token
   });
 };
