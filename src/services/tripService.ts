@@ -36,8 +36,14 @@ export interface Trip {
   arrivalTime: string;
   availability: number;
   price: number;
-  status: number;
+  status: string | number;
   raw: TriipApiEntity;
+}
+
+interface TripListResponse {
+  data?: TriipApiEntity[];
+  trips?: TriipApiEntity[];
+  [key: string]: unknown;
 }
 
 interface TripSingleResponse {
@@ -105,3 +111,70 @@ export const createTrip = async (payload: TripPayload, token: string): Promise<T
 
   return normalizeTrip(entity);
 };
+
+interface TripSearchParams {
+  userId?: string | number;
+  origin?: string;
+  destination?: string;
+  price?: string | number;
+}
+
+const pickTripList = (
+  payload: TripListResponse | TriipApiEntity[] | null | undefined
+): TriipApiEntity[] => {
+  if (!payload) {
+    return [];
+  }
+
+  if (Array.isArray(payload)) {
+    return payload as TriipApiEntity[];
+  }
+
+  if (payload.data) {
+    return payload.data as TriipApiEntity[];
+  }
+
+  if (payload.trips) {
+    return payload.trips as TriipApiEntity[];
+  }
+
+  return [];
+};
+
+const buildTripSearchQuery = (params: TripSearchParams = {}): string => {
+  const query = new URLSearchParams();
+
+  if (params.userId !== undefined) {
+    query.set('user_id', String(params.userId));
+  }
+
+  if (params.origin) {
+    query.set('origin', params.origin);
+  }
+
+  if (params.destination) {
+    query.set('destination', params.destination);
+  }
+
+  if (params.price !== undefined) {
+    query.set('price', String(params.price));
+  }
+
+  const queryString = query.toString();
+  return queryString ? `?${queryString}` : '';
+};
+
+export const fetchTrips = async (
+  params: TripSearchParams,
+  token: string
+): Promise<Trip[]> => {
+  const query = buildTripSearchQuery(params);
+  const response = await apiRequest<TripListResponse | TriipApiEntity[]>(`/trips/search${query}`, {
+    method: 'GET',
+    token
+  });
+
+  return pickTripList(response).map(normalizeTrip);
+};
+
+export type { TripSearchParams };

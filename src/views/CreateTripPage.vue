@@ -198,6 +198,7 @@ const getLatLngString = (place: AutocompletePlace) => {
 
 const onPickupPlaceChanged = (place: AutocompletePlace) => {
   const coords = getLatLngString(place);
+  console.log(place)
 
   if (coords) {
     form.pickupPoint = coords;

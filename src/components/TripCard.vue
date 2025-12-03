@@ -57,7 +57,7 @@ export type RoleOption = 'coRider' | 'carOwner';
 export type TripStatus = 'pending' | 'confirmed' | 'past' | 'active' | 'upcoming';
 
 export interface TripCardData {
-  id: number;
+  id: number | string;
   datetimeLabel: string;
   route: string;
   price: string;

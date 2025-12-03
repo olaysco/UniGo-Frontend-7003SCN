@@ -42,17 +42,28 @@
         </ion-fab-button>
       </ion-fab>
     </ion-content>
+    <ion-toast
+      :is-open="toastOpen"
+      :message="toastMessage"
+      :color="toastColor"
+      duration="2500"
+      @didDismiss="closeToast"
+    />
   </ion-page>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { IonContent, IonFab, IonFabButton, IonIcon, IonPage } from '@ionic/vue';
+import { IonContent, IonFab, IonFabButton, IonIcon, IonPage, IonToast } from '@ionic/vue';
 import { add, personCircleOutline } from 'ionicons/icons';
 import BrandMark from '@/components/BrandMark.vue';
-import TripCard, { RoleOption, TripCardData } from '@/components/TripCard.vue';
+import TripCard, { RoleOption, TripCardData, TripStatus } from '@/components/TripCard.vue';
 import { useUserStore } from '@/stores/userStore';
+import { useTripStore } from '@/stores/tripStore';
+import { storeToRefs } from 'pinia';
+import { useToast } from '@/composables/useToast';
+import type { Trip } from '@/services/tripService';
 
 const userStore = useUserStore();
 const userFirstName = computed(() => {
@@ -82,54 +93,92 @@ const openProfile = () => {
   router.push('/tabs/profile');
 };
 
-const role = ref<RoleOption>('coRider');
+const tripStore = useTripStore();
+const { trips } = storeToRefs(tripStore);
+const { toastMessage, toastColor, toastOpen, showToast, closeToast } = useToast('danger');
 
+const currentUserId = computed(() => userStore.session?.user?.id ?? userStore.profile?.id ?? null);
 
-const trips = ref<TripCardData[]>([
-  {
-    id: 1,
-    datetimeLabel: 'Monday, 28 October, 18:30',
-    route: 'Coventry University to Leamington Spa',
-    price: '£4.55',
-    status: 'confirmed',
-    statusVariant: 'confirmed',
-    passengers: [
-      { id: 1, name: 'Emma Clarke', initials: 'EC', color: '#fdebd5' },
-      { id: 2, name: 'Liam Patel', initials: 'LP', color: '#d9e8fb' }
-    ],
-    mapVariant: 'variant-a',
-    state: 'active',
-    role: role.value
-  },
-  {
-    id: 2,
-    datetimeLabel: 'Tuesday, 29 October, 09:00',
-    route: 'Warwick University to Birmingham',
-    price: '£4.00',
-    status: 'pending',
-    statusVariant: 'pending',
-    passengers: [],
-    seatsLabel: '1/3 Seats',
-    mapVariant: 'variant-b',
-    state: 'active',
-    role: role.value
-  },
-  {
-    id: 3,
-    datetimeLabel: 'Monday, 08:00',
-    route: 'Coventry to London',
-    price: '£12.00',
-    status: 'past',
-    statusVariant: 'completed',
-    passengers: [],
-    seatsLabel: 'Full ride',
-    mapVariant: 'variant-a',
-    state: 'past',
-    role: role.value
+const statusVariantMap: Record<TripStatus, TripCardData['statusVariant']> = {
+  pending: 'pending',
+  confirmed: 'confirmed',
+  past: 'completed',
+  active: 'active',
+  upcoming: 'upcoming'
+};
+
+const normalizeStatus = (status: Trip['status']): TripStatus => {
+  const value = String(status ?? '').toLowerCase();
+  if (value.includes('pending')) return 'pending';
+  if (value.includes('confirm')) return 'confirmed';
+  if (value.includes('past') || value.includes('complete')) return 'past';
+  if (value.includes('upcoming')) return 'upcoming';
+  return 'active';
+};
+
+const formatDateLabel = (value: string) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
   }
-]);
 
-const filteredTrips = computed(() => trips.value.filter(trip => trip.state === activeTab.value));
+  return new Intl.DateTimeFormat('en-GB', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(date);
+};
+
+const formatPrice = (amount: number) => `£${(Number.isFinite(amount) ? amount : Number(amount) || 0).toFixed(2)}`;
+
+const mapTripToCard = (trip: Trip, index: number): TripCardData => {
+  const status = normalizeStatus(trip.status);
+  const departureDate = new Date(trip.departureTime);
+  const isPast = status === 'past' || departureDate.getTime() < Date.now();
+  const role: RoleOption = currentUserId.value && trip.userId !== null && trip.userId !== undefined &&
+    String(trip.userId) === String(currentUserId.value)
+    ? 'carOwner'
+    : 'coRider';
+
+  const origin = trip.departureLocation || 'Pickup TBD';
+  const destination = trip.arrivalLocation || 'Destination TBD';
+
+  return {
+    id: typeof trip.id === 'string' ? Number(trip.id) || trip.id : trip.id,
+    datetimeLabel: formatDateLabel(trip.departureTime),
+    route: `${origin} to ${destination}`,
+    price: formatPrice(trip.price),
+    status,
+    statusVariant: statusVariantMap[status] ?? 'active',
+    passengers: [],
+    seatsLabel: trip.availability ? `${trip.availability} seats available` : undefined,
+    mapVariant: index % 2 === 0 ? 'variant-a' : 'variant-b',
+    state: isPast ? 'past' : 'active',
+    role
+  };
+};
+
+const tripCards = computed(() => trips.value.map(mapTripToCard));
+const filteredTrips = computed(() => tripCards.value.filter(trip => trip.state === activeTab.value));
+
+const ensureTripsLoaded = async () => {
+  if (tripStore.loaded || tripStore.loading) {
+    return;
+  }
+
+  try {
+    await tripStore.fetchTrips();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unable to load trips.';
+    showToast(message, 'danger');
+  }
+};
+
+onMounted(() => {
+  ensureTripsLoaded();
+});
 </script>
 
 <style scoped>
