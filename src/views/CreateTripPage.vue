@@ -10,7 +10,7 @@
             <label class="field-label" for="pickup-input">Pickup Point</label>
             <div :class="['input-shell', { 'input-shell--error': fieldErrors.pickupPoint }]">
                 <GMapAutocomplete
-                   class="native-input sc-ion-input-ios"
+                   class="native-input sc-ion-input-ios w-full"
                     placeholder="e.g., Coventry University"
                     :options="mapOptions"
                     v-model="form.pickupPoint"
@@ -25,7 +25,7 @@
             <label class="field-label" for="destination-input">Destination</label>
             <div :class="['input-shell', { 'input-shell--error': fieldErrors.destination }]">
                <GMapAutocomplete
-                   class="native-input sc-ion-input-ios"
+                   class="native-input sc-ion-input-ios w-full"
                     placeholder="e.g., Coventry University"
                     :options="mapOptions"
                     v-model="form.destination"
