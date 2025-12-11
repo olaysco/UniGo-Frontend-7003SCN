@@ -4,28 +4,12 @@
       <div class="search-layout">
         <section class="map-stage">
           <div class="map-shell">
-            <GoogleMap
-              ref="map"
-              class="map-frame"
-              :center="mapCenter"
-              :zoom="mapZoom"
-              :disableDefaultUI="true"
-            >
-              <GoogleMapMarker
-                v-if="pickupLocation"
-                :position="pickupLocation"
-                :icon="{ url: pickupIcon }"
-                :clickable="false"
-                :map="map?.map"
-              />
-              <GoogleMapMarker
-                v-if="dropoffLocation"
-                :position="dropoffLocation"
-                :icon="{ url: dropoffIcon }"
-                :clickable="false"
-                :map="map?.map"
-              />
-            </GoogleMap>
+<GoogleMap
+  :center="mapCenter"
+  :pickup="pickupLocation"
+  :dropoff="dropoffLocation"
+  class="map-frame"
+/>
           </div>
 
           <div class="query-overlay pt-6 px-6">
@@ -120,6 +104,7 @@ import GoogleMapsAutocomplete from '@/components/GoogleMapsAutocomplete.vue';
 import { fetchTrips, type Trip } from '@/services/tripService';
 import { useUserStore } from '@/stores/userStore';
 import { mapTripToCard } from '@/stores/tripStore';
+import GoogleMapRoute from '@/components/GoogleMapRoute.vue';
 
 type LatLngLiteral = { lat: number; lng: number };
 
