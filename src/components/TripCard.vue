@@ -7,7 +7,8 @@
         <p class="trip-price">Price: {{ trip.price }}</p>
       </div>
       <div class="map-preview" :class="trip.mapVariant">
-        <div class="map-route"></div>
+        <img v-if="photoSrc" :src="photoSrc" alt="" class="map-photo" loading="lazy" />
+        <div v-else class="map-route"></div>
       </div>
     </div>
 
@@ -40,9 +41,11 @@
 </template>
 
 <script setup lang="ts">
+import { ref, watch } from 'vue';
 import { IonIcon } from '@ionic/vue';
 import { useRouter } from 'vue-router';
 import { peopleOutline } from 'ionicons/icons';
+import { getPlacePhotoUri } from '@/utils/places';
 
 type ViewerRole = 'coRider' | 'carOwner';
 
@@ -68,7 +71,11 @@ export interface TripCardData {
   state: 'active' | 'past';
   status: TripStatus;
   role: RoleOption;
+  depPointPlaceId?: string;
+  arrPointPlaceId?: string;
 }
+
+
 
 interface Props {
   trip: TripCardData;
@@ -82,6 +89,34 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const router = useRouter();
+const photoSrc = ref<string | null>(null);
+let activeRequestId = 0;
+
+const loadPhoto = async () => {
+  if (typeof window === 'undefined' || !props.trip.depPointPlaceId) {
+    photoSrc.value = null; 
+    return;
+  }
+
+  const requestId = ++activeRequestId;
+  try {
+    const uri = await getPlacePhotoUri(props.trip.depPointPlaceId);
+    if (requestId === activeRequestId) {
+      photoSrc.value = uri;
+    }
+  } catch (error) {
+    console.error('Error loading place photo:', error);
+    if (requestId === activeRequestId) {
+      photoSrc.value = null; 
+    }
+  }
+};
+
+watch(() => [props.trip.depPointPlaceId], () => {
+  loadPhoto();
+}, { immediate: true });
+
+
 
 const openDetails = () => {
   if (props.routeName) {
@@ -154,10 +189,18 @@ const openDetails = () => {
   position: relative;
   flex-shrink: 0;
   background: linear-gradient(130deg, #f2f6ff, #dcefee);
+  overflow: hidden;
 }
 
 .map-preview.variant-b {
   background: linear-gradient(145deg, #fdf1d8, #e0f3ff);
+}
+
+.map-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .map-route {
@@ -250,3 +293,4 @@ const openDetails = () => {
 }
 
 </style>
+
