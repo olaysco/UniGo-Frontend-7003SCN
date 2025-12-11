@@ -2,7 +2,24 @@ import { apiRequest } from './apiClient';
 
 export type TripIdentifier = string | number;
 
-export interface TriipApiEntity {
+export interface TripVehicleApiEntity {
+  id: string | number;
+  user_id: string | number;
+  model?: string | null;
+  plate_number?: string | null;
+  color?: string | null;
+  capacity?: number | null;
+  s3_imagelink?: string | null;
+}
+
+export interface TripUserApiEntity {
+  id: string | number;
+  name?: string | null;
+  email?: string | null;
+  phone_number?: string | null;
+}
+
+export interface TripApiEntity {
   id: TripIdentifier;
   user_id: string | number;
   vehicle_id: string | number;
@@ -17,6 +34,8 @@ export interface TriipApiEntity {
   availability: number;
   price: number;
   status: number;
+  vehicle?: TripVehicleApiEntity | null;
+  user?: TripUserApiEntity | null;
 }
 
 export interface TripPayload {
@@ -49,38 +68,40 @@ export interface Trip {
   status: string | number;
   arrivalPoint?: any;
   departurePoint?: any;
-  raw: TriipApiEntity;
+  raw: TripApiEntity;
+  vehicle?: TripVehicleApiEntity | null;
+  user?: TripUserApiEntity | null;
 }
 
 interface TripListResponse {
-  data?: TriipApiEntity[];
-  trips?: TriipApiEntity[];
+  data?: TripApiEntity[];
+  trips?: TripApiEntity[];
   [key: string]: unknown;
 }
 
 interface TripSingleResponse {
-  data?: TriipApiEntity;
-  trip?: TriipApiEntity;
+  data?: TripApiEntity;
+  trip?: TripApiEntity;
   [key: string]: unknown;
 }
 
-const pickTripEntity = (payload: TripSingleResponse | TriipApiEntity | null | undefined): TriipApiEntity | null => {
+const pickTripEntity = (payload: TripSingleResponse | TripApiEntity | null | undefined): TripApiEntity | null => {
   if (!payload) {
     return null;
   }
 
   if ('data' in (payload as TripSingleResponse) && (payload as TripSingleResponse).data) {
-    return (payload as TripSingleResponse).data as TriipApiEntity;
+    return (payload as TripSingleResponse).data as TripApiEntity;
   }
 
   if ('trip' in (payload as TripSingleResponse) && (payload as TripSingleResponse).trip) {
-    return (payload as TripSingleResponse).trip as TriipApiEntity;
+    return (payload as TripSingleResponse).trip as TripApiEntity;
   }
 
-  return payload as TriipApiEntity;
+  return payload as TripApiEntity;
 };
 
-const normalizeTrip = (entity: TriipApiEntity): Trip => {
+const normalizeTrip = (entity: TripApiEntity): Trip => {
   return {
     id: entity.id,
     userId: entity.user_id ?? null,
@@ -96,6 +117,8 @@ const normalizeTrip = (entity: TriipApiEntity): Trip => {
     availability: entity.availability,
     price: entity.price,
     status: entity.status,
+    vehicle: entity?.vehicle ?? null,
+    user: entity?.user ?? null,
     raw: entity
   };
 };
@@ -119,7 +142,7 @@ const toApiPayload = (payload: TripPayload) => {
 };
 
 export const createTrip = async (payload: TripPayload, token: string): Promise<Trip> => {
-  const response = await apiRequest<TripSingleResponse | TriipApiEntity>('/trips/create-trip', {
+  const response = await apiRequest<TripSingleResponse | TripApiEntity>('/trips/create-trip', {
     method: 'POST',
     token,
     body: toApiPayload(payload)
@@ -144,22 +167,22 @@ interface TripSearchParams {
 }
 
 const pickTripList = (
-  payload: TripListResponse | TriipApiEntity[] | null | undefined
-): TriipApiEntity[] => {
+  payload: TripListResponse | TripApiEntity[] | null | undefined
+): TripApiEntity[] => {
   if (!payload) {
     return [];
   }
 
   if (Array.isArray(payload)) {
-    return payload as TriipApiEntity[];
+    return payload as TripApiEntity[];
   }
 
   if (payload.data) {
-    return payload.data as TriipApiEntity[];
+    return payload.data as TripApiEntity[];
   }
 
   if (payload.trips) {
-    return payload.trips as TriipApiEntity[];
+    return payload.trips as TripApiEntity[];
   }
 
   return [];
@@ -201,12 +224,24 @@ export const fetchTrips = async (
   token: string
 ): Promise<Trip[]> => {
   const query = buildTripSearchQuery(params);
-  const response = await apiRequest<TripListResponse | TriipApiEntity[]>(`/trips/search${query}`, {
+  const response = await apiRequest<TripListResponse | TripApiEntity[]>(`/trips/search${query}`, {
     method: 'GET',
     token
   });
 
   return pickTripList(response).map(normalizeTrip);
+};
+
+export const fetchTrip = async (
+  id: number | string,
+  token: string
+): Promise<Trip> => {
+  const response = await apiRequest<TripApiEntity>(`/trips/${id}`, {
+    method: 'GET',
+    token
+  });
+
+  return normalizeTrip(response);
 };
 
 export type { TripSearchParams };

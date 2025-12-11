@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { fetchTrips as fetchTripsRequest, type Trip } from '@/services/tripService';
+import { fetchTrips as fetchTripsRequest, fetchTrip as fetchTripRequest, type Trip } from '@/services/tripService';
 import type { TripCardData, TripStatus, RoleOption } from '@/components/TripCard.vue';
 import { useUserStore } from './userStore';
 
@@ -130,7 +130,7 @@ export const mapTripToCard = (
   return {
     id: typeof trip.id === 'string' ? Number(trip.id) || trip.id : trip.id,
     datetimeLabel: formatDateLabel(trip.departureTime),
-    route: `${origin} to ${destination}`,
+    route: `${origin} → ${destination}`,
     price: formatPrice(Number(trip.price)),
     status,
     statusVariant: statusVariantMap[status] ?? 'active',
@@ -202,6 +202,24 @@ export const useTripStore = defineStore('trips', {
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unable to load trips.';
         this.error = message;
+        throw error;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async getTripById(tripId: string | number): Promise<Trip | null> {
+      this.loading = true;
+      const { token, userId } = this.getSessionContext();
+      if (!token || userId === null || userId === undefined) {
+        return null;
+      }
+
+      try {
+        const trip = await fetchTripRequest(tripId, token);
+        return trip;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unable to load trip.';
         throw error;
       } finally {
         this.loading = false;
