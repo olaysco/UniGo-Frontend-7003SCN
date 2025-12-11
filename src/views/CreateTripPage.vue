@@ -8,12 +8,11 @@
 
           <div class="form-group">
             <label class="field-label" for="pickup-input">Pickup Point</label>
-            <div :class="['input-shell', { 'input-shell--error': fieldErrors.pickupPoint }]">
+            <div :class="['input-shell', { 'input-shell--error': fieldErrors.departurePoint }]">
                 <GMapAutocomplete
                    class="native-input sc-ion-input-ios w-full"
                     placeholder="e.g., Coventry University"
                     :options="mapOptions"
-                    v-model="form.pickupPoint"
                     @place_changed="onPickupPlaceChanged"
                   >
                 </GMapAutocomplete>
@@ -23,12 +22,11 @@
 
           <div class="form-group">
             <label class="field-label" for="destination-input">Destination</label>
-            <div :class="['input-shell', { 'input-shell--error': fieldErrors.destination }]">
+            <div :class="['input-shell', { 'input-shell--error': fieldErrors.arrivalPoint }]">
                <GMapAutocomplete
                    class="native-input sc-ion-input-ios w-full"
                     placeholder="e.g., Coventry University"
                     :options="mapOptions"
-                    v-model="form.destination"
                     @place_changed="onDestinationPlaceChanged"
                   >
                 </GMapAutocomplete>
@@ -72,10 +70,10 @@
 
           <div class="form-group">
             <label for="create-trip-datetime-button" class="field-label">Date &amp; Time</label>
-            <ion-datetime-button datetime="create-trip-datetime" class="date-button" ></ion-datetime-button>
+            <ion-datetime-button datetime="create-trip-datetime" class="date-button"></ion-datetime-button>
 
             <ion-modal :keep-contents-mounted="true">
-              <ion-datetime id="create-trip-datetime" v-model="form.datetime"></ion-datetime>
+              <ion-datetime id="create-trip-datetime" v-model="form.datetime" :min="minDate"></ion-datetime>
             </ion-modal>
           </div>
 
@@ -156,18 +154,27 @@ onMounted(() => {
   }
 });
 
+// IonDatetime expects ISO string boundaries; clamp min to start of today.
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+const minDate = today.toISOString();
+
 const form = reactive({
-  pickupPoint: '',
-  destination: '',
+  departureLat: null as number | null,
+  arrivalLat: null as number | null,
+  departureLng: null as number | null,
+  arrivalLng: null as number | null,
+  departurePoint: null as AutocompletePlace | null,
+  arrivalPoint: null as AutocompletePlace | null,
   seats: 2,
-  datetime: (new Date()).toISOString(),
+  datetime: new Date().toISOString(),
   cost: '',
   vehicle_id: null as string | number | null,
 });
 
 const fieldErrors = reactive({
-  pickupPoint: false,
-  destination: false,
+  departurePoint: false,
+  arrivalPoint: false,
   vehicle_id: false,
   cost: false,
 });
@@ -190,10 +197,10 @@ const getLatLngString = (place: AutocompletePlace) => {
   const lng = place?.geometry?.location?.lng();
 
   if (typeof lat === 'number' && typeof lng === 'number') {
-    return `${lat},${lng}`;
+    return [lat, lng];
   }
 
-  return '';
+  return null;
 };
 
 const onPickupPlaceChanged = (place: AutocompletePlace) => {
@@ -201,11 +208,13 @@ const onPickupPlaceChanged = (place: AutocompletePlace) => {
   console.log(place)
 
   if (coords) {
-    form.pickupPoint = coords;
-    fieldErrors.pickupPoint = false;
+    form.departureLat = coords[0];
+    form.departureLng = coords[1];
+    form.departurePoint = place;
+    fieldErrors.departurePoint = false;
   } else {
     showToast('Unable to determine pickup coordinates.', 'danger');
-    fieldErrors.pickupPoint = true;
+    fieldErrors.departurePoint = true;
   }
 };
 
@@ -213,11 +222,13 @@ const onDestinationPlaceChanged = (place: AutocompletePlace) => {
   const coords = getLatLngString(place);
 
   if (coords) {
-    form.destination = coords;
-    fieldErrors.destination = false;
+    form.arrivalLat = coords[0];
+    form.arrivalLng = coords[1];
+    form.arrivalPoint = place
+    fieldErrors.arrivalPoint = false;
   } else {
     showToast('Unable to determine destination coordinates.', 'danger');
-    fieldErrors.destination = true;
+    fieldErrors.arrivalPoint = true;
   }
 };
 
@@ -253,14 +264,15 @@ const goBack = () => {
 };
 
 const createTrip = async () => {
-  fieldErrors.pickupPoint = !form.pickupPoint;
-  fieldErrors.destination = !form.destination;
+  console.log('Creating trip with form data:', form);
+  fieldErrors.departurePoint = !form.departurePoint;
+  fieldErrors.arrivalPoint = !form.arrivalPoint;
   fieldErrors.vehicle_id = form.vehicle_id === null;
   fieldErrors.cost = form.cost === '';
 
   if (
-    fieldErrors.pickupPoint ||
-    fieldErrors.destination ||
+    fieldErrors.departurePoint ||
+    fieldErrors.arrivalPoint ||
     fieldErrors.vehicle_id ||
     fieldErrors.cost
   ) {
@@ -293,12 +305,16 @@ const createTrip = async () => {
   const payload: TripPayload = {
     vehicleId: form.vehicle_id!,
     userId,
-    departureLocation: form.pickupPoint,
-    arrivalLocation: form.destination,
+    departureLng: form.departureLng,
+    arrivalLng: form.arrivalLng,
+    departureLat: form.departureLat,
+    arrivalLat: form.arrivalLat,
+    departurePoint: form.departurePoint,
+    arrivalPoint: form.arrivalPoint,
     departureTime: form.datetime,
     arrivalTime: form.datetime,
     availability: form.seats,
-    price
+    price: Number(form.cost)
   };
 
   creatingTrip.value = true;
@@ -306,7 +322,7 @@ const createTrip = async () => {
   let loader: HTMLIonLoadingElement | null = null;
 
   try {
-    // await createTripRequest(payload, token);
+    await createTripRequest(payload, token);
     showToast('Trip created successfully!', 'success');
 
     loader = await loadingController.create({
