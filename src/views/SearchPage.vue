@@ -86,7 +86,7 @@
                 :threshold="8"
               >
                 <SwiperSlide v-for="ride in rides" :key="ride.id">
-                  <TripCard :trip="ride" route-name="trip-details" />
+                  <TripCard :trip="ride" :route-name="ride.role == 'coRider' ? 'trip-details': 'owner-trip-details'" />
                 </SwiperSlide>
               </Swiper>
 
