@@ -75,17 +75,17 @@
               </div>
 
               <Swiper
-                v-else-if="filteredRides.length"
+                v-else-if="rides.length"
                 class="sheet-swiper"
                 :slides-per-view="slidesPerView"
                 :space-between="16"
                 :slides-offset-before="16"
-                :slides-offset-after="filteredRides.length > 1 ? 16 : 0"
-                :allow-touch-move="filteredRides.length > 1"
-                :grab-cursor="filteredRides.length > 1"
+                :slides-offset-after="rides.length > 1 ? 16 : 0"
+                :allow-touch-move="rides.length > 1"
+                :grab-cursor="rides.length > 1"
                 :threshold="8"
               >
-                <SwiperSlide v-for="ride in filteredRides" :key="ride.id">
+                <SwiperSlide v-for="ride in rides" :key="ride.id">
                   <TripCard :trip="ride" route-name="trip-details" />
                 </SwiperSlide>
               </Swiper>
@@ -95,7 +95,7 @@
                 <p>{{ searchError }}</p>
               </div>
 
-              <div v-else class="sheet-empty">
+              <div v-else-if="pickupLocation || dropoffLocation" class="sheet-empty">
                 <ion-icon :icon="searchOutline" aria-hidden="true" />
                 <p>Update your pickup or drop-off locations to discover rides.</p>
               </div>
@@ -119,13 +119,7 @@ import GoogleMapMarker from '@/components/GoogleMapMarker.vue';
 import GoogleMapsAutocomplete from '@/components/GoogleMapsAutocomplete.vue';
 import { fetchTrips, type Trip } from '@/services/tripService';
 import { useUserStore } from '@/stores/userStore';
-
-interface RideResult extends TripCardData {
-  origin: string;
-  destination: string;
-  departure: string;
-  priceValue: number;
-}
+import { mapTripToCard } from '@/stores/tripStore';
 
 type LatLngLiteral = { lat: number; lng: number };
 
@@ -173,7 +167,7 @@ const mapZoom = computed(() => {
 const pickupIcon = createMarkerIcon('#0ac36c');
 const dropoffIcon = createMarkerIcon('#2563eb');
 
-const rides = ref<RideResult[]>([]);
+const rides = ref<TripCardData[]>([]);
 const isSearching = ref(false);
 const searchError = ref<string | null>(null);
 let latestSearchId = 0;
@@ -204,100 +198,12 @@ const getPlaceDescription = (place: AutocompletePlace, fallback: string) => {
   return place.formatted_address ?? place.name ?? fallback;
 };
 
-const filteredRides = computed(() => rides.value);
-
-const slidesPerView = computed(() => (filteredRides.value.length > 1 ? 1.08 : 1));
+const slidesPerView = computed(() => (rides.value.length > 1 ? 1.08 : 1));
 
 function createMarkerIcon(color: string) {
   const svg = `<svg width="34" height="46" viewBox="0 0 34 46" xmlns="http://www.w3.org/2000/svg"><path d="M17 0C7.611 0 0 7.611 0 17c0 11.756 15.2 26.972 16.471 28.266a0.75 0.75 0 0 0 1.058 0C18.8 43.972 34 28.756 34 17 34 7.611 26.389 0 17 0Zm0 24.5A7.5 7.5 0 1 1 24.5 17 7.509 7.509 0 0 1 17 24.5Z" fill="${color}"/></svg>`;
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
-
-const dateFormatter = new Intl.DateTimeFormat('en-GB', {
-  weekday: 'short',
-  month: 'short',
-  day: 'numeric'
-});
-
-const timeFormatter = new Intl.DateTimeFormat('en-GB', {
-  hour: 'numeric',
-  minute: '2-digit'
-});
-
-const formatDateTimeLabel = (iso: string) => {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) {
-    return iso;
-  }
-
-  const datePart = dateFormatter.format(date);
-  const timePart = timeFormatter.format(date);
-  return `${datePart} · ${timePart}`;
-};
-
-const buildSeatsLabel = (availability: number) => {
-  if (availability <= 0) {
-    return 'No seats available';
-  }
-
-  if (availability === 1) {
-    return '1 seat left';
-  }
-
-  return `${availability} seats left`;
-};
-
-const resolveStatusVariant = (status: Trip['status']): RideResult['statusVariant'] => {
-  const normalized = typeof status === 'string' ? status.toLowerCase() : '';
-  if (normalized === 'confirmed' || normalized === 'pending' || normalized === 'completed' || normalized === 'active' || normalized === 'upcoming') {
-    return normalized;
-  }
-
-  return 'active';
-};
-
-const resolveStatusLabel = (status: Trip['status']): RideResult['status'] => {
-  if (typeof status === 'string') {
-    const normalized = status.toLowerCase();
-    if (normalized === 'pending' || normalized === 'confirmed' || normalized === 'past' || normalized === 'active' || normalized === 'upcoming') {
-      return normalized as RideResult['status'];
-    }
-  }
-
-  if (typeof status === 'number') {
-    if (status === 0) {
-      return 'pending';
-    }
-    if (status === 1) {
-      return 'active';
-    }
-    if (status === 2) {
-      return 'confirmed';
-    }
-  }
-
-  return 'active';
-};
-
-const mapTripToRide = (trip: Trip, index: number): RideResult => {
-  return {
-    id: trip.id,
-    datetimeLabel: formatDateTimeLabel(trip.departureTime),
-    route: `${trip.departureLat} → ${trip.arrivalLat}`,
-    price: `${priceFormatter.format(trip.price)} per seat`,
-    statusVariant: resolveStatusVariant(trip.status),
-    seatsLabel: buildSeatsLabel(trip.availability),
-    passengers: [],
-    mapVariant: index % 2 === 0 ? 'variant-a' : 'variant-b',
-    state: 'active',
-    status: resolveStatusLabel(trip.status),
-    role: 'coRider',
-    origin: `${trip.departureLat}`,
-    destination: `${trip.arrivalLat}`,
-    departure: trip.departureTime,
-    priceValue: trip.price
-  };
-};
 
 const formatCoords = (coords: LatLngLiteral) => `${coords.lat},${coords.lng}`;
 
@@ -309,8 +215,10 @@ const searchTrips = async (origin: LatLngLiteral, destination: LatLngLiteral) =>
   try {
     const trips = await fetchTrips(
       {
-        origin: formatCoords(origin),
-        destination: formatCoords(destination)
+        arrival_lat: origin.lat,
+        arrival_lng: origin.lng,
+        destination_lat: destination.lat,
+        destination_lng: destination.lng
       },
       userStore.session?.token ?? ''
     );
@@ -319,7 +227,8 @@ const searchTrips = async (origin: LatLngLiteral, destination: LatLngLiteral) =>
       return;
     }
 
-    rides.value = trips.map((trip, index) => mapTripToRide(trip, index));
+    rides.value = trips.map((trip, index) => mapTripToCard(trip, index, userStore.session?.user?.id ?? null));
+    console.log('Found trips:', rides.value);
   } catch (error) {
     if (requestId !== latestSearchId) {
       return;

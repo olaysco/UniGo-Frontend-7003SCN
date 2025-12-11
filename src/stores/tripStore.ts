@@ -48,6 +48,31 @@ const formatDateLabel = (value: string) => {
   }).format(date);
 };
 
+const formatDate = (value: string) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat('en-GB', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  }).format(date);
+};
+
+const formatTime = (value: string) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(date);
+};
+
 const formatPrice = (amount: number) => `£${(Number.isFinite(amount) ? amount : Number(amount) || 0).toFixed(2)}`;
 
 const formatLocationLabel = (
@@ -89,17 +114,17 @@ const resolveRole = (trip: Trip, currentUserId: string | number | null): RoleOpt
   return 'coRider';
 };
 
-const mapTripToCard = (
+export const mapTripToCard = (
   trip: Trip,
   index: number,
-  currentUserId: string | number | null,
-  now: number
+  currentUserId: string | number | null
 ): TripCardData => {
   const status = normalizeStatus(trip.status);
   const role = resolveRole(trip, currentUserId);
   const origin = formatLocationLabel(trip.departurePoint, trip.departureLat, trip.departureLng, 'Pickup TBD');
   const destination = formatLocationLabel(trip.arrivalPoint, trip.arrivalLat, trip.arrivalLng, 'Destination TBD');
   const departureDate = new Date(trip.departureTime);
+  const now = Date.now();
   const isPast = status === 'past' || departureDate.getTime() < now;
 
   return {
@@ -115,7 +140,15 @@ const mapTripToCard = (
     state: isPast ? 'past' : 'active',
     role,
     depPointPlaceId: (trip.departurePoint as PlacePoint | undefined)?.place_id,
-    arrPointPlaceId: (trip.arrivalPoint as PlacePoint | undefined)?.place_id
+    arrPointPlaceId: (trip.arrivalPoint as PlacePoint | undefined)?.place_id,
+    requests: [],
+    confirmed: [],
+    total: formatPrice(Number(trip.price) * trip.availability),
+    pickup: origin,
+    dropoff: destination,
+    date: formatDate(trip.departureTime),
+    departure: formatTime(trip.departureTime),
+    seats: trip.availability,
   };
 };
 
@@ -137,8 +170,7 @@ export const useTripStore = defineStore('trips', {
     tripCards: (state): TripCardData[] => {
       const userStore = useUserStore();
       const currentUserId = userStore.session?.user?.id ?? userStore.profile?.id ?? null;
-      const now = Date.now();
-      return state.trips.map((trip, index) => mapTripToCard(trip, index, currentUserId, now));
+      return state.trips.map((trip, index) => mapTripToCard(trip, index, currentUserId));
     }
   },
   actions: {

@@ -73,18 +73,25 @@ export interface TripCardData {
   role: RoleOption;
   depPointPlaceId?: string;
   arrPointPlaceId?: string;
+  requests: any[];
+  confirmed: any[];
+  total: string;
+  pickup: string;
+  dropoff: string;
+  date: string;
+  departure: string;
+  seats: number;
 }
+
 
 
 
 interface Props {
   trip: TripCardData;
-  viewerRole?: ViewerRole;
   routeName?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  viewerRole: 'coRider',
   routeName: ''
 });
 
@@ -119,16 +126,17 @@ watch(() => [props.trip.depPointPlaceId], () => {
 
 
 const openDetails = () => {
+  console.log('Opening details for trip:', props.trip);
   if (props.routeName) {
     router.push({ name: props.routeName, params: { id: props.trip.id } });
     return;
   }
 
-  const fallbackRoute = props.viewerRole === 'carOwner' ? 'owner-trip-details' : 'booked-trip-details';
+  const fallbackRoute = props.trip.role === 'carOwner' ? 'owner-trip-details' : 'booked-trip-details';
   router.push({
     name: fallbackRoute,
     params: { id: props.trip.id },
-    query: { role: props.viewerRole, status: props.trip.status }
+    query: { role: props.trip.role, status: props.trip.status }
   });
 };
 </script>

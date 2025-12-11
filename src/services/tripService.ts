@@ -135,8 +135,11 @@ export const createTrip = async (payload: TripPayload, token: string): Promise<T
 
 interface TripSearchParams {
   userId?: string | number;
-  origin?: string;
-  destination?: string;
+  radius?: string;
+  destination_lat?: number;
+  destination_lng?: number;
+  arrival_lat?: number;
+  arrival_lng?: number;
   price?: string | number;
 }
 
@@ -169,12 +172,20 @@ const buildTripSearchQuery = (params: TripSearchParams = {}): string => {
     query.set('user_id', String(params.userId));
   }
 
-  if (params.origin) {
-    query.set('origin', params.origin);
+  if (params.arrival_lat) {
+    query.set('arrival_lat', String(params.arrival_lat));
   }
 
-  if (params.destination) {
-    query.set('destination', params.destination);
+  if (params.arrival_lng) {
+    query.set('arrival_lng', String(params.arrival_lng));
+  }
+
+  if (params.destination_lat) {
+    query.set('destination_lat', String(params.destination_lat));
+  }
+
+  if (params.destination_lng) {
+    query.set('destination_lng', String(params.destination_lng));
   }
 
   if (params.price !== undefined) {
