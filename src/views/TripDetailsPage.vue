@@ -377,7 +377,8 @@ const submitBooking = async () => {
     seat: 1,
     price: parsePriceValue(trip.value.price),
     pickup_point,
-    pickup_lat_lng
+    pickup_lat_lng,
+    user_id: userStore.session?.user.id || null
   };
 
   try {

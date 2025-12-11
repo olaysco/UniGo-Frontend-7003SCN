@@ -2,15 +2,15 @@
   <ion-modal
     class="pickup-modal"
     :is-open="isOpen"
-    :initial-breakpoint="0.45"
-    :breakpoints="[0, 0.45, 0.9]"
+    :initial-breakpoint="0.6"
+    :breakpoints="[0, 0.45, 0.6, 0.9]"
     handle-behavior="cycle"
     @didDismiss="emitClose"
   >
     <ion-content class="pickup-sheet">
       <div class="pickup-sheet__inner ion-padding">
         <p class="pickup-sheet__eyebrow">Booking detail</p>
-        <h2 class="pickup-sheet__title text-bold">Confirm pickup location</h2>
+        <h2 class="pickup-sheet__title font-black">Confirm pickup location</h2>
         <p class="pickup-sheet__base">Trip pickup: {{ baseLabel }}</p>
 
         <ion-segment
@@ -316,6 +316,7 @@ ion-modal.pickup-modal::part(handle) {
   margin: 0;
   font-size: 1.1rem;
   color: #0f172a;
+  font-weight: bold;
 }
 
 .pickup-sheet__base {
