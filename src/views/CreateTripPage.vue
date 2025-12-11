@@ -9,13 +9,12 @@
           <div class="form-group">
             <label class="field-label" for="pickup-input">Pickup Point</label>
             <div :class="['input-shell', { 'input-shell--error': fieldErrors.departurePoint }]">
-                <GMapAutocomplete
-                   class="native-input sc-ion-input-ios w-full"
-                    placeholder="e.g., Coventry University"
-                    :options="mapOptions"
-                    @place_changed="onPickupPlaceChanged"
-                  >
-                </GMapAutocomplete>
+                <GoogleMapsAutocomplete
+   class="native-input sc-ion-input-ios w-full"
+   placeholder="e.g., Coventry University"
+   :options="mapOptions"
+   @place_changed="onPickupPlaceChanged"
+/>
               <ion-icon :icon="navigateOutline" aria-hidden="true" class="input-icon" />
             </div>
           </div>
@@ -23,13 +22,13 @@
           <div class="form-group">
             <label class="field-label" for="destination-input">Destination</label>
             <div :class="['input-shell', { 'input-shell--error': fieldErrors.arrivalPoint }]">
-               <GMapAutocomplete
+               <GoogleMapsAutocomplete
                    class="native-input sc-ion-input-ios w-full"
                     placeholder="e.g., Coventry University"
                     :options="mapOptions"
                     @place_changed="onDestinationPlaceChanged"
                   >
-                </GMapAutocomplete>
+                </GoogleMapsAutocomplete>
               <ion-icon :icon="locationOutline" aria-hidden="true" class="input-icon" />
             </div>
           </div>
@@ -116,6 +115,7 @@ import { IonButton, IonContent, IonDatetime, IonDatetimeButton, IonIcon, IonInpu
 import { addOutline, locationOutline, navigateOutline, removeOutline } from 'ionicons/icons';
 import { useRouter } from 'vue-router';
 import AppBackHeader from '@/components/AppBackHeader.vue';
+import GoogleMapsAutocomplete from '@/components/GoogleMapsAutocomplete.vue';
 import { useVehicleStore } from '@/stores/vehicleStore';
 import { storeToRefs } from 'pinia';
 import { useToast } from '@/composables/useToast';
@@ -483,7 +483,7 @@ const createTrip = async () => {
   color: #101828;
   font-weight: 600;
   padding: 0 18px;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 8px 18px rgba(15, 23, 42,.05);
 }
 
 .date-button:focus-visible {
