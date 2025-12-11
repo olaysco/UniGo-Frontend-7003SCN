@@ -6,9 +6,13 @@ export interface TriipApiEntity {
   id: TripIdentifier;
   user_id: string | number;
   vehicle_id: string | number;
-  departure_location: string;
-  arrival_location: string;
-  departure_time: string;
+  dep_lng: number;
+  dep_lat: number;
+  arr_lng: number;
+  arr_lat: number;
+  dep_point?: any;
+  arr_point?: any;
+  dep_time: string;
   arrival_time: string;
   availability: number;
   price: number;
@@ -18,25 +22,33 @@ export interface TriipApiEntity {
 export interface TripPayload {
   vehicleId: string | number;
   userId: string | number;
-  departureLocation: string;
-  arrivalLocation: string;
+  departureLng: null | number;
+  departureLat: null | number;
+  arrivalLng: null | number;
+  arrivalLat: null | number;
   departureTime: string;
   arrivalTime: string;
   availability: number;
   price: number;
+  arrivalPoint?: any;
+  departurePoint?: any;
 }
 
 export interface Trip {
   id: TripIdentifier;
   userId: string | number | null;
   vehicleId: string | number | null;
-  departureLocation: string;
-  arrivalLocation: string;
+  departureLng: number;
+  departureLat: number;
+  arrivalLng: number;
+  arrivalLat: number;
   departureTime: string;
   arrivalTime: string;
   availability: number;
   price: number;
   status: string | number;
+  arrivalPoint?: any;
+  departurePoint?: any;
   raw: TriipApiEntity;
 }
 
@@ -73,9 +85,13 @@ const normalizeTrip = (entity: TriipApiEntity): Trip => {
     id: entity.id,
     userId: entity.user_id ?? null,
     vehicleId: entity.vehicle_id ?? null,
-    departureLocation: entity.departure_location,
-    arrivalLocation: entity.arrival_location,
-    departureTime: entity.departure_time,
+    departureLng: entity.dep_lng,
+    arrivalLng: entity.arr_lng,
+    departureLat: entity.dep_lat,
+    arrivalLat: entity.arr_lat,
+    departurePoint: entity.dep_point,
+    arrivalPoint: entity.arr_point,
+    departureTime: entity.dep_time,
     arrivalTime: entity.arrival_time,
     availability: entity.availability,
     price: entity.price,
@@ -88,12 +104,17 @@ const toApiPayload = (payload: TripPayload) => {
   return {
     vehicle_id: payload.vehicleId,
     user_id: payload.userId,
-    departure_location: payload.departureLocation,
-    arrival_location: payload.arrivalLocation,
-    departure_time: payload.departureTime,
+    dep_lat: payload.departureLat,
+    dep_lng: payload.departureLng,
+    arr_lat: payload.arrivalLat,
+    arr_lng: payload.arrivalLng,
+    dep_point: payload.departurePoint,
+    arr_point: payload.arrivalPoint,
+    dep_time: payload.departureTime,
     arrival_time: payload.arrivalTime,
     availability: payload.availability,
-    price: payload.price
+    price: payload.price,
+    arr_time: payload.departureTime
   };
 };
 
