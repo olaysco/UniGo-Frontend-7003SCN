@@ -1,6 +1,6 @@
 <template>
   <ion-page>
-    <ion-content class="owner-trip-page safe-area-scroll">
+    <ion-content v-if="trip" class="owner-trip-page safe-area-scroll">
       <AppBackHeader title="Trip Overview" subtitle="Trip Information" @back="goBack" />
 
       <div class="page-body ion-padding">
@@ -99,6 +99,12 @@
         </section>
       </div>
     </ion-content>
+    <ion-content v-else class="ion-padding">
+      <AppBackHeader title="Trip Not Found" @back="goBack" />
+      <div class="page-body">
+        <p>Could not find the requested trip.</p>
+      </div>
+    </ion-content>
   </ion-page>
 </template>
 
@@ -112,62 +118,17 @@ import {
   IonPage
 } from '@ionic/vue';
 import { checkmarkCircle, locationOutline, navigateOutline, people, star } from 'ionicons/icons';
-import { reactive } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import AppBackHeader from '@/components/AppBackHeader.vue';
+import { useTripStore } from '@/stores/tripStore';
+import { computed } from 'vue';
 
 const router = useRouter();
+const route = useRoute();
+const tripStore = useTripStore();
 
-const trip = reactive({
-  route: 'Coventry Campus to Rugby',
-  pickup: 'The Hub, Coventry University',
-  dropoff: 'Rugby Town Centre',
-  date: 'Mon, 03 Jun',
-  departure: '07:30 AM',
-  seats: 3,
-  total: '£18.00',
-  status: 'Active ride',
-  requests: [
-    {
-      id: 'r-1',
-      name: 'Alex Doe',
-      seats: 1,
-      note: 'Pickup near Science Park',
-      rating: '4.9',
-      reviews: 21,
-      avatar: 'https://images.unsplash.com/photo-1544723795-3fb6469f5b39?auto=format&fit=crop&w=200&q=80'
-    },
-    {
-      id: 'r-2',
-      name: 'Maya L.',
-      seats: 1,
-      note: 'Flexible drop-off',
-      rating: '4.7',
-      reviews: 15,
-      avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=200&q=80'
-    }
-  ],
-  confirmed: [
-    {
-      id: 'c-1',
-      name: 'Jamie W.',
-      seats: 1,
-      note: 'Paid via Stripe',
-      rating: '4.8',
-      reviews: 18,
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80'
-    },
-    {
-      id: 'c-2',
-      name: 'Priya S.',
-      seats: 1,
-      note: 'Regular rider',
-      rating: '5.0',
-      reviews: 30,
-      avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=200&q=80'
-    }
-  ]
-});
+const tripId = route.params.id as string;
+const trip = computed(() => tripStore.tripCards.find(t => String(t.id) === tripId));
 
 const goBack = () => {
   router.back();
