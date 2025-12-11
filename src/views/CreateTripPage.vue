@@ -121,11 +121,13 @@ import { storeToRefs } from 'pinia';
 import { useToast } from '@/composables/useToast';
 import { createTrip as createTripRequest, type TripPayload } from '@/services/tripService';
 import { useUserStore } from '@/stores/userStore';
+import { useTripStore } from '@/stores/tripStore';
 const { toastMessage, toastColor, toastOpen, showToast, closeToast } = useToast('success');
 
 const router = useRouter();
 const vehicleStore = useVehicleStore();
 const userStore = useUserStore();
+const tripStore = useTripStore();
 const { vehicles, loaded } = storeToRefs(vehicleStore);
 
 const loadVehicles = async () => {
@@ -322,14 +324,14 @@ const createTrip = async () => {
   let loader: HTMLIonLoadingElement | null = null;
 
   try {
-    await createTripRequest(payload, token);
+    const trip = await createTripRequest(payload, token);
     showToast('Trip created successfully!', 'success');
 
     loader = await loadingController.create({
       message: 'Redirecting...'
     });
     await loader.present();
-    await new Promise((resolve) => setTimeout(resolve, 1200));
+    await tripStore.fetchTrips(true);
     router.back();
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to create trip.';
