@@ -2,38 +2,30 @@
   <ion-page>
     <ion-content class="search-content" :fullscreen="true">
       <div class="search-layout">
-        <!-- <header class="top-bar">
-          <button class="icon-button" type="button" aria-label="Go back" @click="goBack">
-            <ion-icon :icon="chevronBackOutline" aria-hidden="true" />
-          </button>
-          <h1>Find a Ride</h1>
-          <button class="icon-button" type="button" aria-label="Open filters">
-            <ion-icon :icon="funnelOutline" aria-hidden="true" />
-          </button>
-        </header> -->
-
         <section class="map-stage">
           <div class="map-shell">
-            <iframe
+            <GoogleMap
+              ref="map"
               class="map-frame"
-              :src="mapSrc"
-              loading="lazy"
-              allowfullscreen
-              referrerpolicy="no-referrer-when-downgrade"
-              title="Google Maps preview"
-            ></iframe>
-            <div
-              v-for="pin in mapPins"
-              :key="pin.id"
-              class="map-pin"
-              :class="`is-${pin.variant}`"
-              :style="{ top: `${pin.top}%`, left: `${pin.left}%` }"
+              :center="mapCenter"
+              :zoom="mapZoom"
+              :disableDefaultUI="true"
             >
-              <span v-if="pin.label">{{ pin.label }}</span>
-            </div>
-            <div class="map-price" :style="pricePinStyle">
-              <span>{{ primaryFareLabel }}</span>
-            </div>
+              <GoogleMapMarker
+                v-if="pickupLocation"
+                :position="pickupLocation"
+                :icon="{ url: pickupIcon }"
+                :clickable="false"
+                :map="map?.map"
+              />
+              <GoogleMapMarker
+                v-if="dropoffLocation"
+                :position="dropoffLocation"
+                :icon="{ url: dropoffIcon }"
+                :clickable="false"
+                :map="map?.map"
+              />
+            </GoogleMap>
           </div>
 
           <div class="query-overlay pt-6 px-6">
@@ -43,12 +35,15 @@
               </div>
               <div class="query-fields">
                 <p class="query-label text-slate-60">Pickup</p>
-                <input
+                <GoogleMapsAutocomplete
                   v-model="originQuery"
-                  type="text"
+                  class="query-input"
                   placeholder="Where are you now?"
                   aria-label="Pickup location"
-                />
+                  :options="autocompleteOptions"
+                  @place_changed="onPickupPlaceChanged"
+                >
+                </GoogleMapsAutocomplete>
               </div>
             </div>
 
@@ -58,12 +53,15 @@
               </div>
               <div class="query-fields">
                 <p class="query-label text-slate-60">Drop-off</p>
-                <input
+                <GoogleMapsAutocomplete
                   v-model="destinationQuery"
-                  type="text"
+                  class="query-input"
                   placeholder="Where to?"
                   aria-label="Drop-off location"
-                />
+                  :options="autocompleteOptions"
+                  @place_changed="onDropoffPlaceChanged"
+                >
+                </GoogleMapsAutocomplete>
               </div>
             </div>
           </div>
@@ -71,8 +69,13 @@
           <section class="result-sheet">
             <div class="sheet-card">
 
+              <div v-if="isSearching" class="sheet-loading">
+                <ion-spinner name="crescent" aria-hidden="true" />
+                <p>Searching trips...</p>
+              </div>
+
               <Swiper
-                v-if="filteredRides.length"
+                v-else-if="filteredRides.length"
                 class="sheet-swiper"
                 :slides-per-view="slidesPerView"
                 :space-between="16"
@@ -87,9 +90,14 @@
                 </SwiperSlide>
               </Swiper>
 
+              <div v-else-if="searchError" class="sheet-empty is-error">
+                <ion-icon :icon="searchOutline" aria-hidden="true" />
+                <p>{{ searchError }}</p>
+              </div>
+
               <div v-else class="sheet-empty">
                 <ion-icon :icon="searchOutline" aria-hidden="true" />
-                <p>Try updating your pickup or drop-off locations to discover more rides.</p>
+                <p>Update your pickup or drop-off locations to discover rides.</p>
               </div>
             </div>
           </section>
@@ -100,13 +108,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { useRouter } from 'vue-router';
-import { IonContent, IonIcon, IonPage } from '@ionic/vue';
+import { computed, ref, watch } from 'vue';
+import { IonContent, IonIcon, IonPage, IonSpinner } from '@ionic/vue';
 import { Swiper, SwiperSlide } from 'swiper/vue';
 import 'swiper/css';
-import { chevronBackOutline, funnelOutline, locateOutline, searchOutline } from 'ionicons/icons';
+import { locateOutline, searchOutline } from 'ionicons/icons';
 import TripCard, { TripCardData } from '@/components/TripCard.vue';
+import GoogleMap from '@/components/GoogleMap.vue';
+import GoogleMapMarker from '@/components/GoogleMapMarker.vue';
+import GoogleMapsAutocomplete from '@/components/GoogleMapsAutocomplete.vue';
+import { fetchTrips, type Trip } from '@/services/tripService';
+import { useUserStore } from '@/stores/userStore';
 
 interface RideResult extends TripCardData {
   origin: string;
@@ -115,140 +127,245 @@ interface RideResult extends TripCardData {
   priceValue: number;
 }
 
-interface MapPin {
-  id: string;
-  top: number;
-  left: number;
-  variant: 'cluster' | 'dot';
-  label?: string;
-}
+type LatLngLiteral = { lat: number; lng: number };
 
-const router = useRouter();
 
-const originQuery = ref('Coventry University');
-const destinationQuery = ref('Warwick University');
-
-const rides = ref<RideResult[]>([
-  {
-    id: 1,
-    datetimeLabel: 'Today · 08:30 AM',
-    route: 'Coventry University → Warwick University',
-    price: '£5.00 per seat',
-    statusVariant: 'confirmed',
-    seatsLabel: '2 seats left',
-    passengers: [
-      { id: 1, name: 'Alex Morgan', initials: 'AM', color: '#e3fff1' },
-      { id: 2, name: 'Ben Patel', initials: 'BP', color: '#fff2e0' }
-    ],
-    mapVariant: 'variant-a',
-    state: 'active',
-    status: 'active',
-    role: 'coRider',
-    origin: 'Coventry University',
-    destination: 'Warwick University',
-    departure: '2024-07-24T08:30:00',
-    priceValue: 5
-  },
-  {
-    id: 2,
-    datetimeLabel: 'Today · 08:30 AM',
-    route: 'Coventry University → Warwick University',
-    price: '£7.00 per seat',
-    statusVariant: 'confirmed',
-    seatsLabel: '3 seats left',
-    passengers: [
-      { id: 1, name: 'Alex Morgan', initials: 'AM', color: '#e3fff1' },
-      { id: 2, name: 'Ben Patel', initials: 'BP', color: '#fff2e0' }
-    ],
-    mapVariant: 'variant-a',
-    state: 'active',
-    status: 'active',
-    role: 'coRider',
-    origin: 'Coventry University',
-    destination: 'Warwick University',
-    departure: '2024-07-24T08:30:00',
-    priceValue: 5
-  },
-  {
-    id: 3,
-    datetimeLabel: 'Today · 09:15 AM',
-    route: 'Coventry Station → Leamington Spa',
-    price: '£4.50 per seat',
-    statusVariant: 'active',
-    seatsLabel: 'Only 1 seat left',
-    passengers: [
-      { id: 3, name: 'Maria R', initials: 'MR', color: '#fde8dc' }
-    ],
-    mapVariant: 'variant-b',
-    state: 'active',
-    status: 'active',
-    role: 'coRider',
-    origin: 'Coventry Station',
-    destination: 'Leamington Spa',
-    departure: '2024-07-24T09:15:00',
-    priceValue: 4.5
-  },
-  {
-    id: 4,
-    datetimeLabel: 'Today · 11:00 AM',
-    route: 'City Centre → Arena Shopping Park',
-    price: '£3.00 per seat',
-    statusVariant: 'upcoming',
-    seatsLabel: '3 seats left',
-    passengers: [
-      { id: 4, name: 'Ben C', initials: 'BC', color: '#e2f6ed' },
-      { id: 5, name: 'Rita K', initials: 'RK', color: '#e5ebff' }
-    ],
-    mapVariant: 'variant-a',
-    state: 'active',
-    status: 'upcoming',
-    role: 'coRider',
-    origin: 'City Centre',
-    destination: 'Arena Shopping Park',
-    departure: '2024-07-24T11:00:00',
-    priceValue: 3
+const fallbackCenter: LatLngLiteral = { lat: 52.406822, lng: -1.519693 };
+const autocompleteOptions = {
+  componentRestrictions: { country: 'gb' },
+  bounds: {
+    north: fallbackCenter.lat + 0.5,
+    south: fallbackCenter.lat - 0.5,
+    east: fallbackCenter.lng + 0.5,
+    west: fallbackCenter.lng - 0.5
   }
-]);
+};
 
-const mapPins: MapPin[] = [
-  { id: 'cluster', top: 16, left: 20, variant: 'cluster', label: '4' },
-  { id: 'dot-a', top: 62, left: 28, variant: 'dot' },
-  { id: 'dot-b', top: 42, left: 65, variant: 'dot' }
-];
+const map = ref();
+const originQuery = ref();
+const destinationQuery = ref();
 
-const pricePinStyle = { top: '52%', left: '52%' };
+const userStore = useUserStore();
+const pickupLocation = ref<LatLngLiteral | null>();
+const dropoffLocation = ref<LatLngLiteral | null>();
+const mapCenter = computed<LatLngLiteral>(() => {
+  if (pickupLocation.value && dropoffLocation.value) {
+    return {
+      lat: (pickupLocation.value.lat + dropoffLocation.value.lat) / 2,
+      lng: (pickupLocation.value.lng + dropoffLocation.value.lng) / 2
+    };
+  }
 
-const fallbackValue = (value: string, fallback: string) => (value.trim() ? value.trim() : fallback);
-
-const mapSrc = computed(() => {
-  const origin = fallbackValue(originQuery.value, 'Coventry University');
-  const destination = fallbackValue(destinationQuery.value, 'Warwick University');
-  const params = new URLSearchParams({ q: `${origin} to ${destination}`, z: '12', output: 'embed' });
-  return `https://maps.google.com/maps?${params.toString()}`;
+  return pickupLocation.value ?? dropoffLocation.value ?? fallbackCenter;
 });
 
-const filteredRides = computed(() => {
-  const origin = originQuery.value.trim().toLowerCase();
-  const destination = destinationQuery.value.trim().toLowerCase();
+const mapZoom = computed(() => {
+  if (pickupLocation.value && dropoffLocation.value) {
+    return 11;
+  }
 
-  const matches = rides.value.filter(ride => {
-    const matchOrigin = origin ? ride.origin.toLowerCase().includes(origin) : true;
-    const matchDestination = destination ? ride.destination.toLowerCase().includes(destination) : true;
-    return matchOrigin && matchDestination;
-  });
+  if (pickupLocation.value || dropoffLocation.value) {
+    return 13;
+  }
 
-  return matches.sort((a, b) => new Date(a.departure).getTime() - new Date(b.departure).getTime());
+  return 12;
 });
+const pickupIcon = createMarkerIcon('#0ac36c');
+const dropoffIcon = createMarkerIcon('#2563eb');
 
-const primaryFareLabel = computed(() => {
-  const ride = filteredRides.value[0];
-  return ride ? `£${ride.priceValue.toFixed(2)}` : '£0.00';
-});
+const rides = ref<RideResult[]>([]);
+const isSearching = ref(false);
+const searchError = ref<string | null>(null);
+let latestSearchId = 0;
+
+type AutocompletePlace = {
+  formatted_address?: string;
+  name?: string;
+  geometry?: {
+    location?: {
+      lat(): number;
+      lng(): number;
+    };
+  };
+};
+
+const getLatLngFromPlace = (place: AutocompletePlace): LatLngLiteral | null => {
+  const lat = place?.geometry?.location?.lat?.();
+  const lng = place?.geometry?.location?.lng?.();
+
+  if (typeof lat === 'number' && typeof lng === 'number') {
+    return { lat, lng };
+  }
+
+  return null;
+};
+
+const getPlaceDescription = (place: AutocompletePlace, fallback: string) => {
+  return place.formatted_address ?? place.name ?? fallback;
+};
+
+const filteredRides = computed(() => rides.value);
 
 const slidesPerView = computed(() => (filteredRides.value.length > 1 ? 1.08 : 1));
 
-const goBack = () => {
-  router.back();
+function createMarkerIcon(color: string) {
+  const svg = `<svg width="34" height="46" viewBox="0 0 34 46" xmlns="http://www.w3.org/2000/svg"><path d="M17 0C7.611 0 0 7.611 0 17c0 11.756 15.2 26.972 16.471 28.266a0.75 0.75 0 0 0 1.058 0C18.8 43.972 34 28.756 34 17 34 7.611 26.389 0 17 0Zm0 24.5A7.5 7.5 0 1 1 24.5 17 7.509 7.509 0 0 1 17 24.5Z" fill="${color}"/></svg>`;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
+const dateFormatter = new Intl.DateTimeFormat('en-GB', {
+  weekday: 'short',
+  month: 'short',
+  day: 'numeric'
+});
+
+const timeFormatter = new Intl.DateTimeFormat('en-GB', {
+  hour: 'numeric',
+  minute: '2-digit'
+});
+
+const formatDateTimeLabel = (iso: string) => {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return iso;
+  }
+
+  const datePart = dateFormatter.format(date);
+  const timePart = timeFormatter.format(date);
+  return `${datePart} · ${timePart}`;
+};
+
+const buildSeatsLabel = (availability: number) => {
+  if (availability <= 0) {
+    return 'No seats available';
+  }
+
+  if (availability === 1) {
+    return '1 seat left';
+  }
+
+  return `${availability} seats left`;
+};
+
+const resolveStatusVariant = (status: Trip['status']): RideResult['statusVariant'] => {
+  const normalized = typeof status === 'string' ? status.toLowerCase() : '';
+  if (normalized === 'confirmed' || normalized === 'pending' || normalized === 'completed' || normalized === 'active' || normalized === 'upcoming') {
+    return normalized;
+  }
+
+  return 'active';
+};
+
+const resolveStatusLabel = (status: Trip['status']): RideResult['status'] => {
+  if (typeof status === 'string') {
+    const normalized = status.toLowerCase();
+    if (normalized === 'pending' || normalized === 'confirmed' || normalized === 'past' || normalized === 'active' || normalized === 'upcoming') {
+      return normalized as RideResult['status'];
+    }
+  }
+
+  if (typeof status === 'number') {
+    if (status === 0) {
+      return 'pending';
+    }
+    if (status === 1) {
+      return 'active';
+    }
+    if (status === 2) {
+      return 'confirmed';
+    }
+  }
+
+  return 'active';
+};
+
+const mapTripToRide = (trip: Trip, index: number): RideResult => {
+  return {
+    id: trip.id,
+    datetimeLabel: formatDateTimeLabel(trip.departureTime),
+    route: `${trip.departureLat} → ${trip.arrivalLat}`,
+    price: `${priceFormatter.format(trip.price)} per seat`,
+    statusVariant: resolveStatusVariant(trip.status),
+    seatsLabel: buildSeatsLabel(trip.availability),
+    passengers: [],
+    mapVariant: index % 2 === 0 ? 'variant-a' : 'variant-b',
+    state: 'active',
+    status: resolveStatusLabel(trip.status),
+    role: 'coRider',
+    origin: `${trip.departureLat}`,
+    destination: `${trip.arrivalLat}`,
+    departure: trip.departureTime,
+    priceValue: trip.price
+  };
+};
+
+const formatCoords = (coords: LatLngLiteral) => `${coords.lat},${coords.lng}`;
+
+const searchTrips = async (origin: LatLngLiteral, destination: LatLngLiteral) => {
+  const requestId = ++latestSearchId;
+  isSearching.value = true;
+  searchError.value = null;
+
+  try {
+    const trips = await fetchTrips(
+      {
+        origin: formatCoords(origin),
+        destination: formatCoords(destination)
+      },
+      userStore.session?.token ?? ''
+    );
+
+    if (requestId !== latestSearchId) {
+      return;
+    }
+
+    rides.value = trips.map((trip, index) => mapTripToRide(trip, index));
+  } catch (error) {
+    if (requestId !== latestSearchId) {
+      return;
+    }
+
+    searchError.value = error instanceof Error ? error.message : 'Unable to load trips.';
+    rides.value = [];
+  } finally {
+    if (requestId === latestSearchId) {
+      isSearching.value = false;
+    }
+  }
+};
+
+watch(
+  [pickupLocation, dropoffLocation],
+  ([origin, destination]) => {
+    console.log('Searching trips from', origin, 'to', destination);
+    if (origin && destination) {
+      void searchTrips(origin, destination);
+    }
+  },
+  { immediate: true }
+);
+
+
+const onPickupPlaceChanged = (place: AutocompletePlace) => {
+  const coords = getLatLngFromPlace(place);
+  const description = getPlaceDescription(place, originQuery.value);
+
+  if (coords) {
+    pickupLocation.value = coords;
+  }
+
+  originQuery.value = description;
+};
+
+const onDropoffPlaceChanged = (place: AutocompletePlace) => {
+  const coords = getLatLngFromPlace(place);
+  const description = getPlaceDescription(place, destinationQuery.value);
+
+  if (coords) {
+    dropoffLocation.value = coords;
+  }
+
+  destinationQuery.value = description;
 };
 </script>
 
@@ -263,31 +380,6 @@ const goBack = () => {
   height: 100%;
   min-height: 100%;
   gap: 14px;
-}
-
-.top-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.top-bar h1 {
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.icon-button {
-  border: none;
-  background: #ffffff;
-  width: 44px;
-  height: 44px;
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 12px 35px rgba(15, 23, 42, 0.12);
-  color: #0f172a;
 }
 
 .map-stage {
@@ -348,16 +440,17 @@ const goBack = () => {
   margin-bottom: 2px;
 }
 
-.query-fields input {
+.query-input {
   border: none;
   background: transparent;
   font-size: 0.95rem;
   font-weight: 600;
   color: #0e1527;
   outline: none;
+  width: 100%;
 }
 
-.query-fields input::placeholder {
+.query-input::placeholder {
   color: #b4bccb;
   font-weight: 500;
 }
@@ -385,56 +478,6 @@ const goBack = () => {
   inset: 0;
   background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.3), transparent 45%);
   pointer-events: none;
-}
-
-.map-pin {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  color: #ffffff;
-  z-index: 2;
-}
-
-.map-pin.is-cluster {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  background: #0ac36c;
-  box-shadow: 0 12px 30px rgba(10, 195, 108, 0.4);
-}
-
-.map-pin.is-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #06c167;
-  box-shadow: 0 6px 15px rgba(6, 193, 103, 0.5);
-}
-
-.map-price {
-  position: absolute;
-  transform: translate(-50%, -100%);
-  background: #ffffff;
-  color: #0f172a;
-  padding: 10px 16px;
-  border-radius: 18px;
-  font-weight: 700;
-  box-shadow: 0 18px 35px rgba(17, 24, 39, 0.2);
-}
-
-.map-price::after {
-  content: '';
-  position: absolute;
-  bottom: -6px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 14px;
-  height: 14px;
-  background: #ffffff;
-  rotate: 45deg;
 }
 
 .result-sheet {
@@ -470,10 +513,32 @@ const goBack = () => {
   text-align: center;
   gap: 8px;
   color: #6d7388;
+  background: white;
+  padding: 8px;
 }
 
 .sheet-empty ion-icon {
   font-size: 1.8rem;
   color: #9aa3b6;
+}
+
+.sheet-empty.is-error {
+  color: #b42318;
+}
+
+.sheet-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #6d7388;
+  padding: 12px;
+}
+
+.sheet-loading ion-spinner {
+  width: 30px;
+  height: 30px;
+  color: #136f4a;
 }
 </style>
