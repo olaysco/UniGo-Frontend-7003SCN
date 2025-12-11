@@ -99,12 +99,10 @@ import 'swiper/css';
 import { locateOutline, searchOutline } from 'ionicons/icons';
 import TripCard, { TripCardData } from '@/components/TripCard.vue';
 import GoogleMap from '@/components/GoogleMap.vue';
-import GoogleMapMarker from '@/components/GoogleMapMarker.vue';
 import GoogleMapsAutocomplete from '@/components/GoogleMapsAutocomplete.vue';
 import { fetchTrips, type Trip } from '@/services/tripService';
 import { useUserStore } from '@/stores/userStore';
 import { mapTripToCard } from '@/stores/tripStore';
-import GoogleMapRoute from '@/components/GoogleMapRoute.vue';
 
 type LatLngLiteral = { lat: number; lng: number };
 
