@@ -2,7 +2,6 @@ import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router';
 import pinia from './stores';
-import  VueGoogleMaps from '@fawmi/vue-google-maps'
 
 import { IonicVue } from '@ionic/vue';
 
@@ -39,14 +38,7 @@ import './theme/variables.css';
 const app = createApp(App)
   .use(IonicVue)
   .use(pinia)
-  .use(router)
-  .use(VueGoogleMaps, {
-    load: {
-      key: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-      libraries: 'places',
-      v: 'weekly',
-    },
-  });
+  .use(router);
 
 router.isReady().then(() => {
   app.mount('#app');
