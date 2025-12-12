@@ -38,6 +38,11 @@ export interface TripApiEntity {
   user?: TripUserApiEntity | null;
 }
 
+export interface TripBookingApiEntity extends TripApiEntity {
+  booking_id?: string | number | null;
+  booking_status?: string | number | null;
+}
+
 export interface TripPayload {
   vehicleId: string | number;
   userId: string | number;
@@ -71,6 +76,11 @@ export interface Trip {
   raw: TripApiEntity;
   vehicle?: TripVehicleApiEntity | null;
   user?: TripUserApiEntity | null;
+}
+
+export interface TripWithBooking extends Trip {
+  bookingId: string | number | null;
+  bookingStatus: string | number | null;
 }
 
 interface TripListResponse {
@@ -242,6 +252,29 @@ export const fetchTrip = async (
   });
 
   return normalizeTrip(response);
+};
+
+export const fetchUserBookedTrips = async (
+  userId: string | number,
+  token: string
+): Promise<TripWithBooking[]> => {
+  const response = await apiRequest<TripListResponse | TripBookingApiEntity[]>(
+    `/bookings/users/${userId}/trips`,
+    {
+      method: 'GET',
+      token
+    }
+  );
+
+  return pickTripList(response).map(entity => {
+    const normalized = normalizeTrip(entity);
+    const bookingEntity = entity as TripBookingApiEntity;
+    return {
+      ...normalized,
+      bookingId: bookingEntity.booking_id ?? null,
+      bookingStatus: bookingEntity.booking_status ?? null
+    };
+  });
 };
 
 export type { TripSearchParams };

@@ -47,8 +47,6 @@ import { useRouter } from 'vue-router';
 import { peopleOutline } from 'ionicons/icons';
 import { getPlacePhotoUri } from '@/utils/places';
 
-type ViewerRole = 'coRider' | 'carOwner';
-
 export interface Passenger {
   id: number;
   name: string;
@@ -81,6 +79,8 @@ export interface TripCardData {
   date: string;
   departure: string;
   seats: number;
+  bookingId?: string | number | null;
+  bookingStatus?: string | number | null;
 }
 
 
@@ -301,4 +301,3 @@ const openDetails = () => {
 }
 
 </style>
-

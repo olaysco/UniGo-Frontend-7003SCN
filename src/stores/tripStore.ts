@@ -1,10 +1,21 @@
 import { defineStore } from 'pinia';
-import { fetchTrips as fetchTripsRequest, fetchTrip as fetchTripRequest, type Trip } from '@/services/tripService';
+import {
+  fetchTrips as fetchTripsRequest,
+  fetchTrip as fetchTripRequest,
+  type Trip,
+  type TripWithBooking
+} from '@/services/tripService';
 import type { TripCardData, TripStatus, RoleOption } from '@/components/TripCard.vue';
 import { useUserStore } from './userStore';
 
 const statusById: Record<number, TripStatus> = {
   1: 'active'
+};
+
+const bookingStatusById: Record<number, TripStatus> = {
+  1: 'pending',
+  2: 'confirmed',
+  3: 'past'
 };
 
 const statusVariantMap: Record<TripStatus, TripCardData['statusVariant']> = {
@@ -106,7 +117,6 @@ type PlacePoint = {
   place_id?: string;
 };
 
-
 const resolveRole = (trip: Trip, currentUserId: string | number | null): RoleOption => {
   if (currentUserId !== null && currentUserId !== undefined && trip.userId !== null && trip.userId !== undefined) {
     return String(trip.userId) === String(currentUserId) ? 'carOwner' : 'coRider';
@@ -114,18 +124,50 @@ const resolveRole = (trip: Trip, currentUserId: string | number | null): RoleOpt
   return 'coRider';
 };
 
+const normalizeBookingStatus = (status: Trip['status'] | null | undefined): TripStatus => {
+  if (typeof status === 'number' && bookingStatusById[status]) {
+    return bookingStatusById[status];
+  }
+
+  const numericStatus = Number(status);
+  if (!Number.isNaN(numericStatus) && bookingStatusById[numericStatus]) {
+    return bookingStatusById[numericStatus];
+  }
+
+  const value = String(status ?? '').toLowerCase();
+  if (value.includes('confirm') || value.includes('accept')) {
+    return 'confirmed';
+  }
+  if (value.includes('cancel') || value.includes('reject') || value.includes('past') || value.includes('complete')) {
+    return 'past';
+  }
+  return 'pending';
+};
+
+interface TripCardOverrides {
+  role?: RoleOption;
+  status?: TripStatus;
+  statusVariant?: TripCardData['statusVariant'];
+  seatsLabel?: string;
+  bookingId?: string | number | null;
+  bookingStatus?: string | number | null;
+}
+
 export const mapTripToCard = (
   trip: Trip,
   index: number,
-  currentUserId: string | number | null
+  currentUserId: string | number | null,
+  overrides: TripCardOverrides = {}
 ): TripCardData => {
-  const status = normalizeStatus(trip.status);
-  const role = resolveRole(trip, currentUserId);
+  const baseStatus = overrides.status ?? normalizeStatus(trip.status);
+  const role = overrides.role ?? resolveRole(trip, currentUserId);
   const origin = formatLocationLabel(trip.departurePoint, trip.departureLat, trip.departureLng, 'Pickup TBD');
   const destination = formatLocationLabel(trip.arrivalPoint, trip.arrivalLat, trip.arrivalLng, 'Destination TBD');
   const departureDate = new Date(trip.departureTime);
   const now = Date.now();
-  const isPast = status === 'past' || departureDate.getTime() < now;
+  const isPast = baseStatus === 'past' || departureDate.getTime() < now;
+  const status = isPast ? 'past' : baseStatus;
+  const seatsLabel = overrides.seatsLabel ?? (trip.availability ? `${trip.availability} seats available` : undefined);
 
   return {
     id: typeof trip.id === 'string' ? Number(trip.id) || trip.id : trip.id,
@@ -133,9 +175,9 @@ export const mapTripToCard = (
     route: `${origin} → ${destination}`,
     price: formatPrice(Number(trip.price)),
     status,
-    statusVariant: statusVariantMap[status] ?? 'active',
+    statusVariant: overrides.statusVariant ?? statusVariantMap[status] ?? 'active',
     passengers: [],
-    seatsLabel: trip.availability ? `${trip.availability} seats available` : undefined,
+    seatsLabel,
     mapVariant: index % 2 === 0 ? 'variant-a' : 'variant-b',
     state: isPast ? 'past' : 'active',
     role,
@@ -149,7 +191,23 @@ export const mapTripToCard = (
     date: formatDate(trip.departureTime),
     departure: formatTime(trip.departureTime),
     seats: trip.availability,
+    bookingId: overrides.bookingId ?? null,
+    bookingStatus: overrides.bookingStatus ?? null
   };
+};
+
+export const mapBookedTripToCard = (
+  trip: TripWithBooking,
+  index: number,
+  currentUserId: string | number | null
+): TripCardData => {
+  const status = normalizeBookingStatus(trip.bookingStatus);
+  return mapTripToCard(trip, index, currentUserId, {
+    role: 'coRider',
+    status,
+    bookingId: trip.bookingId ?? null,
+    bookingStatus: trip.bookingStatus ?? null
+  });
 };
 
 interface TripState {
@@ -220,6 +278,7 @@ export const useTripStore = defineStore('trips', {
         return trip;
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unable to load trip.';
+        this.error = message;
         throw error;
       } finally {
         this.loading = false;
