@@ -1,6 +1,6 @@
 <template>
   <ion-page>
-    <ion-content class="cancel-trip-page safe-area-scroll">
+    <ion-content class="cancel-booking-page safe-area-scroll">
       <AppBackHeader title="Cancel Your Trip?" @back="goBack" />
       <div class="page-body ion-padding">
         <section class="trip-card" aria-label="Trip summary">
@@ -83,7 +83,7 @@ const route = useRoute();
 const tripStore = useTripStore();
 const userStore = useUserStore();
 
-const tripId = route.params.id as string;
+const tripId = (route.params.tripId || route.params.id) as string;
 const remoteTrip = ref<TripCardData | null>(null);
 const localTrip = computed(() => tripStore.tripCards.find(t => String(t.id) === tripId));
 const trip = computed(() => localTrip.value ?? remoteTrip.value ?? null);
@@ -172,7 +172,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.cancel-trip-page {
+.cancel-booking-page {
   --background: #f6f7fb;
 }
 

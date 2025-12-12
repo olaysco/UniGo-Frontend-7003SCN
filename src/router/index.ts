@@ -81,6 +81,12 @@ const routes: Array<RouteRecordRaw> = [
         meta: { requiresAuth: true }
       },
       {
+        path: 'bookings/:tripId/cancel',
+        name: 'cancel-booking',
+        component: () => import('@/views/CancelBookingPage.vue'),
+        meta: { requiresAuth: true }
+      },
+      {
         path: 'terms-of-service',
         component: () => import('@/views/TermsOfServicePage.vue'),
         meta: { requiresAuth: true }
@@ -103,13 +109,6 @@ const routes: Array<RouteRecordRaw> = [
         meta: { requiresAuth: true }
       }
     ]
-  },
-  {
-    path: '/cancel-trip/:id?',
-    name: 'cancel-trip',
-    //component: () => import('@/views/CancelTripPage.vue')
-      component: () => import('@/views/CancelTripUnavailablePage.vue'),
-    meta: { requiresAuth: true }
   },
   {
     path: '/booking-receipt/:id',

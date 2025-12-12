@@ -467,8 +467,18 @@ const viewReceipt = () => {
 };
 
 const cancelBooking = () => {
-  const bookingIdValue = bookingId.value || 'current';
-  router.push({ name: 'cancel-trip', params: { id: bookingIdValue } });
+  const tripIdValue =
+    tripRecord.value?.id ??
+    tripSnapshot.value?.id ??
+    bookingRecord.value?.trip_id ??
+    null;
+
+  if (!tripIdValue) {
+    console.warn('No trip id available for cancellation');
+    return;
+  }
+
+  router.push({ name: 'cancel-booking', params: { tripId: tripIdValue } });
 };
 
 const rateTrip = () => {
