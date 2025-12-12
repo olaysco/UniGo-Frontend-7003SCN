@@ -10,7 +10,7 @@
     <ion-content class="pickup-sheet">
       <div class="pickup-sheet__inner ion-padding">
         <p class="pickup-sheet__eyebrow">Booking detail</p>
-        <h2 class="pickup-sheet__title font-black">Confirm pickup location</h2>
+        <h2 class="pickup-sheet__title font-black">Confirm pickup location and seats</h2>
         <p class="pickup-sheet__base">Trip pickup: {{ baseLabel }}</p>
 
         <ion-segment
@@ -42,6 +42,29 @@
         <p class="pickup-sheet__status" :class="{ 'is-error': pickupMode === 'custom' && !isCustomDistanceValid }">
           {{ pickupStatusLabel }}
         </p>
+
+        <div class="seat-picker">
+          <label class="seat-picker__label" for="seat-count">Seats to book</label>
+          <div class="seat-picker__field">
+            <span class="seat-picker__prefix">Seats</span>
+            <input
+              id="seat-count"
+              v-model.number="seatCount"
+              type="number"
+              inputmode="numeric"
+              :min="hasSeatOptions ? 1 : 0"
+              :max="maxSelectableSeats"
+              :disabled="!hasSeatOptions"
+              class="seat-picker__input"
+            />
+          </div>
+          <p v-if="hasSeatOptions" class="seat-picker__hint">
+            Up to {{ maxSelectableSeats }} seat{{ maxSelectableSeats === 1 ? '' : 's' }} available.
+          </p>
+          <p v-else class="seat-picker__hint seat-picker__hint--error">
+            No seats are available for this trip.
+          </p>
+        </div>
 
         <div class="pickup-sheet__actions">
           <ion-button fill="clear" color="medium" @click="emitClose">Cancel</ion-button>
@@ -75,6 +98,7 @@ type PickupMode = 'current' | 'custom';
 interface ConfirmPayload {
   label: string;
   coords: Coordinates | null;
+  seat: number;
 }
 
 interface AutocompletePlace {
@@ -95,11 +119,13 @@ const props = withDefaults(
     basePickupCoords: Coordinates | null;
     currentPickupLabel?: string;
     maxDistanceKm?: number;
+    availableSeats?: number;
   }>(),
   {
     basePickupLabel: '',
     currentPickupLabel: '',
-    maxDistanceKm: 2
+    maxDistanceKm: 2,
+    availableSeats: 1
   }
 );
 
@@ -112,16 +138,26 @@ const pickupMode = ref<PickupMode>('current');
 const pickupSearchQuery = ref('');
 const lastSelectedQuery = ref('');
 const customCoords = ref<Coordinates | null>(null);
+const seatCount = ref(1);
 
 const baseLabel = computed(() => props.basePickupLabel || 'Pickup location pending');
 const allowsCustomPickup = computed(() => Boolean(props.basePickupCoords));
 const displayMaxDistance = computed(() => props.maxDistanceKm);
+const maxSelectableSeats = computed(() => {
+  const seats = Number(props.availableSeats);
+  if (!Number.isFinite(seats)) {
+    return 0;
+  }
+  return Math.max(0, Math.floor(seats));
+});
+const hasSeatOptions = computed(() => maxSelectableSeats.value > 0);
 
 const resetForm = () => {
   pickupMode.value = 'current';
   pickupSearchQuery.value = props.currentPickupLabel?.trim() || baseLabel.value;
   lastSelectedQuery.value = pickupSearchQuery.value;
   customCoords.value = null;
+  seatCount.value = hasSeatOptions.value ? 1 : 0;
 };
 
 watch(
@@ -132,6 +168,22 @@ watch(
     }
   }
 );
+
+watch(maxSelectableSeats, seats => {
+  if (seats <= 0) {
+    seatCount.value = 0;
+    return;
+  }
+
+  if (seatCount.value <= 0) {
+    seatCount.value = 1;
+    return;
+  }
+
+  if (seatCount.value > seats) {
+    seatCount.value = seats;
+  }
+});
 
 watch(pickupSearchQuery, value => {
   if (pickupMode.value === 'custom' && value !== lastSelectedQuery.value) {
@@ -196,12 +248,14 @@ const isCustomDistanceValid = computed(() => {
 });
 
 const canSubmitPickup = computed(() => {
+  const seatIsValid = hasSeatOptions.value && seatCount.value >= 1 && seatCount.value <= maxSelectableSeats.value;
+
   if (pickupMode.value === 'current') {
-    return true;
+    return seatIsValid;
   }
 
   const hasLabel = Boolean(pickupSearchQuery.value.trim());
-  return hasLabel && customPickupCoords.value !== null && isCustomDistanceValid.value;
+  return seatIsValid && hasLabel && customPickupCoords.value !== null && isCustomDistanceValid.value;
 });
 
 const pickupStatusLabel = computed(() => {
@@ -262,7 +316,8 @@ const emitConfirm = () => {
     emit('confirm', {
       label: baseLabel.value,
       coords: props.basePickupCoords ?? null,
-      mode: pickupMode.value
+      mode: pickupMode.value,
+      seat: seatCount.value
     });
     return;
   }
@@ -271,7 +326,8 @@ const emitConfirm = () => {
     emit('confirm', {
       label: pickupSearchQuery.value.trim(),
       coords: customPickupCoords.value,
-      mode: pickupMode.value
+      mode: pickupMode.value,
+      seat: seatCount.value
     });
   }
 };
@@ -411,5 +467,70 @@ ion-modal.pickup-modal::part(handle) {
   gap: 10px;
   align-items: center;
   justify-content: flex-end;
+}
+
+.seat-picker {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.seat-picker__label {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #6b738a;
+}
+
+.seat-picker__field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f7f9fd;
+  border-radius: 12px;
+  padding: 8px 12px;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+}
+
+.seat-picker__prefix {
+  font-size: 0.9rem;
+  color: #6b738a;
+  font-weight: 600;
+}
+
+.seat-picker__input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-size: 1rem;
+  color: #0f172a;
+  appearance: textfield;
+}
+
+.seat-picker__input:focus-visible {
+  outline: none;
+}
+
+.seat-picker__input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.seat-picker__input::-webkit-outer-spin-button,
+.seat-picker__input::-webkit-inner-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+.seat-picker__hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #7b849c;
+}
+
+.seat-picker__hint--error {
+  color: #c53030;
 }
 </style>

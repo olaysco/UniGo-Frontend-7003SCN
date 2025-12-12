@@ -79,6 +79,7 @@
       :base-pickup-coords="basePickupSnapshot.coords"
       :current-pickup-label="trip.pickup"
       :max-distance-km="MAX_CUSTOM_DISTANCE_KM"
+      :available-seats="availableSeatCount"
       @close="closePickupSheet"
       @confirm="handlePickupConfirmed"
     />
@@ -183,13 +184,15 @@ const isBooking = ref(false);
 const bookingSuccessAlert = ref(false);
 const bookingError = ref<string | null>(null);
 const lastBookingId = ref<number | null>(null);
-const pendingSelection = ref<{ label: string; coords: Coordinates | null; mode: 'current' | 'custom' } | null>(null);
 
 type BookingSelection = {
   label: string;
   coords: Coordinates | null;
   mode: 'current' | 'custom';
+  seat: number;
 };
+
+const pendingSelection = ref<BookingSelection | null>(null);
 
 const deriveInitials = (value: string | null | undefined) => {
   if (!value) {
@@ -274,6 +277,14 @@ const formattedDate = computed(() => {
 const pickupLabel = computed(() => trip.value.pickup || 'Pickup location pending');
 const dropoffLabel = computed(() => trip.value.dropoff || 'Destination pending');
 const priceLabel = computed(() => trip.value.price || '£0.00');
+const availableSeatCount = computed(() => {
+  const seats = trip.value.seats;
+  if (typeof seats === 'number') {
+    return Math.max(0, Math.floor(seats));
+  }
+  const numericValue = Number(seats);
+  return Number.isFinite(numericValue) ? Math.max(0, Math.floor(numericValue)) : 0;
+});
 const seatsLabel = computed(() => {
   if (typeof trip.value.seats === 'number' && trip.value.seats > 0) {
     return `${trip.value.seats} seat${trip.value.seats === 1 ? '' : 's'} available`;
@@ -371,10 +382,12 @@ const submitBooking = async () => {
 
   const selection = pendingSelection.value;
   const { pickup_point, pickup_lat_lng } = buildPickupPayload(selection);
+  const requestedSeats = Math.max(1, Math.floor(selection?.seat ?? 1));
+  const seatsToBook = availableSeatCount.value > 0 ? Math.min(requestedSeats, availableSeatCount.value) : requestedSeats;
 
   const payload = {
     tripId: trip.value.id,
-    seat: 1,
+    seat: seatsToBook,
     price: parsePriceValue(trip.value.price),
     pickup_point,
     pickup_lat_lng,
