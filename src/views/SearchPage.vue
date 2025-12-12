@@ -80,7 +80,7 @@
               </div>
 
               <div v-else-if="pickupLocation || dropoffLocation" class="sheet-empty">
-                <ion-icon :icon="searchOutline" aria-hidden="true" />
+                <!-- <ion-icon :icon="searchOutline" aria-hidden="true" /> -->
                 <p>Update your pickup or drop-off locations to discover rides.</p>
               </div>
             </div>
@@ -208,7 +208,21 @@ const searchTrips = async (origin: LatLngLiteral, destination: LatLngLiteral) =>
       return;
     }
 
-    rides.value = trips.map((trip, index) => mapTripToCard(trip, index, userStore.session?.user?.id ?? null));
+    const currentUserId = userStore.session?.user?.id ?? null;
+    const now = Date.now();
+    rides.value = trips
+      .filter(trip => {
+        const tripStatus = String(trip.status).toLowerCase();
+        const isCancelled = tripStatus.includes('cancel');
+        const isCompleted = tripStatus.includes('complete');
+        const isPastStatus = tripStatus.includes('past');
+        const departureDate = new Date(trip.departureTime).getTime();
+        const isPastDate = Number.isFinite(departureDate) && departureDate < now;
+        const belongsToCurrentUser =
+          currentUserId !== null && trip.userId !== null && String(trip.userId) === String(currentUserId);
+        return !belongsToCurrentUser && !isCancelled && !isCompleted && !isPastStatus && !isPastDate;
+      })
+      .map((trip, index) => mapTripToCard(trip, index, currentUserId));
   } catch (error) {
     if (requestId !== latestSearchId) {
       return;
