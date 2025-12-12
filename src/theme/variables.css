@@ -76,6 +76,10 @@ http://ionicframework.com/docs/theming/ */
 	caret-color: var(--ion-color-primary-contrast);
 }
 
+.has-focus.sc-ion-textarea-ios-h textarea.sc-ion-textarea-ios {
+	caret-color: var(--ion-color-primary-contrast);
+}
+
 a {
     color: var(--ion-color-secondary);
 }

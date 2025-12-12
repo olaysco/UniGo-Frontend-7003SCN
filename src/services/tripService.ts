@@ -67,6 +67,14 @@ export interface TripPayload {
   departurePoint?: any;
 }
 
+export interface NaturalLanguageTripSuggestion {
+  departure_location?: string | null;
+  arrival_location?: string | null;
+  seats?: number | null;
+  departure_time?: string | null;
+  price?: number | null;
+}
+
 export interface Trip {
   id: TripIdentifier;
   userId: string | number | null;
@@ -173,6 +181,20 @@ export const createTrip = async (payload: TripPayload, token: string): Promise<T
   }
 
   return normalizeTrip(entity);
+};
+
+export const parseTripDescription = async (text: string, token: string): Promise<NaturalLanguageTripSuggestion> => {
+  const response = await apiRequest<NaturalLanguageTripSuggestion>('/trips/natural-language', {
+    method: 'POST',
+    token,
+    body: { text }
+  });
+
+  if (!response) {
+    throw new Error('Trip description response missing data');
+  }
+
+  return response;
 };
 
 interface TripSearchParams {
