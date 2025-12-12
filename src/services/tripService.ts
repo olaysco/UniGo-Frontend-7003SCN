@@ -289,12 +289,9 @@ export const cancelTrip = async (
   tripId: number | string,
   token: string
 ): Promise<void> => {
-  await apiRequest(`/trips/cancel`, {
+  await apiRequest(`/trips/${tripId}/cancel`, {
     method: 'POST',
-    token,
-    body: {
-      trip_id: tripId
-    }
+    token
   });
 };
 

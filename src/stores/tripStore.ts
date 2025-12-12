@@ -11,7 +11,8 @@ import type { TripCardData, TripStatus, RoleOption } from '@/components/TripCard
 import { useUserStore } from './userStore';
 
 const statusById: Record<number, TripStatus> = {
-  1: 'active'
+  0: 'active',
+  1: 'cancelled'
 };
 
 const bookingStatusById: Record<number, TripStatus> = {
@@ -32,6 +33,7 @@ const statusVariantMap: Record<TripStatus, TripCardData['statusVariant']> = {
 };
 
 const normalizeStatus = (status: Trip['status']): TripStatus => {
+  console.log('Normalizing status:', status);
   if (typeof status === 'number' && statusById[status]) {
     return statusById[status];
   }
@@ -173,7 +175,7 @@ export const mapTripToCard = (
   const destination = formatLocationLabel(trip.arrivalPoint, trip.arrivalLat, trip.arrivalLng, 'Destination TBD');
   const departureDate = new Date(trip.departureTime);
   const now = Date.now();
-  const isPast = baseStatus === 'past' || departureDate.getTime() < now;
+  const isPast = baseStatus === 'past' || baseStatus === 'cancelled' || departureDate.getTime() < now;
   const status = baseStatus === 'cancelled' || baseStatus === 'completed' ? baseStatus : isPast ? 'past' : baseStatus;
   const seatsLabel = overrides.seatsLabel ?? (trip.availability ? `${trip.availability} seats available` : undefined);
 

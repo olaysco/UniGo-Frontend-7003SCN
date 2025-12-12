@@ -189,6 +189,7 @@
       header="Cancel trip?"
       message="This will notify your riders and remove the trip from the schedule."
       :buttons="cancelAlertButtons"
+      css-class="cancel-trip-alert"
     />
     <ion-alert
       :is-open="showBookingActionAlert"
@@ -394,10 +395,10 @@ const cancelTripAction = async () => {
   canceling.value = true;
   try {
     await tripStore.cancelTrip(tripId);
-    remoteTrip.value = null;
     await tripStore.fetchTrips(true);
-    await ensureTripData();
+    await ensureTripData(true);
     await loadBookings();
+    showToast('Trip cancelled successfully.', 'success');
   } catch (error) {
     cancelError.value = error instanceof Error ? error.message : 'Unable to cancel trip.';
   } finally {
@@ -730,6 +731,16 @@ const bookingActionButtons = computed<AlertButton[]>(() => [
 
 :global(.booking-action-alert .alert-button:not(.alert-button-role-cancel)) {
   color: var(--ion-color-secondary, #1fb6ff) !important;
+  font-weight: 600;
+}
+
+:global(.cancel-trip-alert .alert-button-role-cancel) {
+  color: #0f172a !important;
+  font-weight: 600;
+}
+
+:global(.cancel-trip-alert .alert-button-role-destructive) {
+  color: var(--ion-color-danger, #c5000f) !important;
   font-weight: 600;
 }
 </style>
