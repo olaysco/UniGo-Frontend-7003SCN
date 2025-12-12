@@ -18,9 +18,9 @@
           <ion-label>Trips</ion-label>
         </ion-tab-button>
 
-        <ion-tab-button tab="messages" href="/tabs/messages">
-          <ion-icon aria-hidden="true" :icon="chatbubbleEllipsesOutline" />
-          <ion-label>Messages</ion-label>
+        <ion-tab-button tab="profile" href="/tabs/profile">
+          <ion-icon aria-hidden="true" :icon="personCircleOutline" />
+          <ion-label>Profile</ion-label>
         </ion-tab-button>
       </ion-tab-bar>
     </ion-tabs>
@@ -29,7 +29,7 @@
 
 <script setup lang="ts">
 import { IonTabBar, IonTabButton, IonTabs, IonLabel, IonIcon, IonPage, IonRouterOutlet } from '@ionic/vue';
-import { calendarOutline, carSportOutline, chatbubbleEllipsesOutline, homeOutline, personCircleOutline, searchOutline } from 'ionicons/icons';
+import { calendarOutline, carSportOutline, personCircleOutline, homeOutline, searchOutline } from 'ionicons/icons';
 </script>
 
 <style scoped>

@@ -15,34 +15,43 @@
             <div class="map-visual"> <img src="/map-placeholder.png" alt=""></div>
             <div class="route-chip">
               <ion-icon :icon="navigateOutline" aria-hidden="true" />
-              <span>{{ trip.route.origin }} → {{ trip.route.destination }}</span>
+              <span>{{ routeChipLabel }}</span>
             </div>
           </section>
 
           <section class="driver-card">
             <div class="driver-meta">
-              <div class="driver-avatar" role="img" :aria-label="`${trip.driver.name} avatar`">
-                <span>{{ trip.driver.initials }}</span>
+              <div class="driver-avatar" role="img" :aria-label="`${driverName} avatar`">
+                <span>{{ driverInitials }}</span>
               </div>
               <div>
-                <p class="driver-name">{{ trip.driver.name }}</p>
-                <p class="driver-car">{{ trip.driver.vehicle }}</p>
+                <p class="driver-name">{{ driverName }}</p>
+                <p class="driver-car">{{ driverVehicle }}</p>
               </div>
             </div>
-            <div class="driver-rating" :aria-label="`Driver rating ${trip.driver.rating} out of 5`">
+            <div
+              v-if="driverRating"
+              class="driver-rating"
+              :aria-label="`Driver rating ${driverRating} out of 5`"
+            >
               <ion-icon :icon="star" aria-hidden="true" />
-              <span>{{ trip.driver.rating.toFixed(1) }}</span>
+              <span>{{ driverRating }}</span>
             </div>
           </section>
 
           <section class="detail-list">
-            <article v-for="item in detailItems" :key="item.id" class="detail-row">
+            <article
+              v-for="item in detailItems"
+              :key="item.id"
+              class="detail-row"
+            >
               <div class="icon-chip" :class="`is-${item.accent}`">
                 <ion-icon :icon="item.icon" aria-hidden="true" />
               </div>
               <div class="detail-copy">
                 <p class="detail-label">{{ item.label }}</p>
                 <p class="detail-value" :class="{ 'is-accent': item.highlight }">{{ item.value }}</p>
+                <p v-if="item.helper" class="detail-helper">{{ item.helper }}</p>
               </div>
             </article>
           </section>
@@ -52,18 +61,49 @@
 
     <ion-footer class="cta-footer">
       <div class="cta-panel ion-padding">
-        <ion-button expand="block" size="large" color="secondary" @click="requestSeat">
-          Book Seat for £{{ trip.pricePerSeat.toFixed(2) }}
+        <ion-button
+          expand="block"
+          size="large"
+          color="secondary"
+          :disabled="isBooking"
+          @click="openPickupSheet"
+        >
+          <span v-if="!isBooking">Book Seat for {{ priceLabel }}</span>
+          <span v-else>Booking…</span>
         </ion-button>
       </div>
     </ion-footer>
+    <BookingConfirmSheet
+      :is-open="pickupSheetOpen"
+      :base-pickup-label="basePickupSnapshot.label"
+      :base-pickup-coords="basePickupSnapshot.coords"
+      :current-pickup-label="trip.pickup"
+      :max-distance-km="MAX_CUSTOM_DISTANCE_KM"
+      :available-seats="availableSeatCount"
+      @close="closePickupSheet"
+      @confirm="handlePickupConfirmed"
+    />
+    <ion-alert
+      header="Booking confirmed"
+      message="Your seat has been secured."
+      :is-open="bookingSuccessAlert"
+      :buttons="[{ text: 'View booking', role: 'confirm' }]"
+      @didDismiss="handleSuccessAlertDismiss"
+    />
+    <ion-toast
+      :is-open="Boolean(bookingError)"
+      :message="bookingError || ''"
+      color="danger"
+      duration="2500"
+      @didDismiss="clearBookingError"
+    />
   </ion-page>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { IonButton, IonContent, IonFooter, IonIcon, IonPage } from '@ionic/vue';
+import { IonAlert, IonButton, IonContent, IonFooter, IonIcon, IonPage, IonToast } from '@ionic/vue';
 import {
   calendarOutline,
   cashOutline,
@@ -73,42 +113,185 @@ import {
   peopleOutline,
   star
 } from 'ionicons/icons';
+import type { TripCardData } from '@/components/TripCard.vue';
+import { mapTripToCard, useTripStore } from '@/stores/tripStore';
+import type { Trip } from '@/services/tripService';
+import BookingConfirmSheet from '@/components/BookingConfirmSheet.vue';
+import { createBooking } from '@/services/bookingService';
+import { useUserStore } from '@/stores/userStore';
+
+type TripDetailsPayload = TripCardData & {
+  driver?: {
+    name?: string | null;
+    initials?: string | null;
+    vehicle?: string | null;
+    rating?: number | null;
+  };
+  pickupCoords?: Coordinates | null;
+};
+
+type Coordinates = {
+  lat: number;
+  lng: number;
+};
 
 const router = useRouter();
 const route = useRoute();
+const tripStore = useTripStore();
+const userStore = useUserStore();
 
-const trip = {
-  id: Number(route.params.id ?? 1),
-  date: '2024-10-28T08:30:00',
-  pickupPoint: 'Priory Street, Coventry CV1',
-  destinationAddress: 'Birmingham Airport, B26 3QJ',
-  pricePerSeat: 8,
-  seatsAvailable: 2,
-  route: {
-    origin: 'Coventry City Centre',
-    destination: 'Birmingham Airport'
-  },
+const createFallbackTrip = (): TripDetailsPayload => ({
+  id: Number(route.params.id ?? 0) || 0,
+  datetimeLabel: 'Date & time to be confirmed',
+  route: 'Trip route pending',
+  price: '£0.00',
+  status: 'pending',
+  statusVariant: 'pending',
+  passengers: [],
+  seatsLabel: undefined,
+  mapVariant: 'variant-a',
+  state: 'active',
+  role: 'coRider',
+  depPointPlaceId: undefined,
+  arrPointPlaceId: undefined,
+  requests: [],
+  confirmed: [],
+  total: '£0.00',
+  pickup: 'Pickup location pending',
+  dropoff: 'Destination pending',
+  date: 'Date TBD',
+  departure: 'Time TBD',
+  seats: 0,
+  pickupCoords: null,
   driver: {
-    name: 'Alex R.',
-    initials: 'AR',
-    vehicle: 'Volkswagen ID.3 • Blue',
-    rating: 4.8
+    name: 'Driver details coming soon',
+    initials: 'DD',
+    vehicle: 'Vehicle to be confirmed',
+    rating: null
   }
+});
+
+const tripId = route.params.id as string;
+
+const trip = ref<TripDetailsPayload>(createFallbackTrip());
+const basePickupSnapshot = ref<{ label: string; coords: Coordinates | null }>({
+  label: trip.value.pickup,
+  coords: trip.value.pickupCoords ?? null
+});
+const pickupSheetOpen = ref(false);
+const MAX_CUSTOM_DISTANCE_KM = 10;
+const isBooking = ref(false);
+const bookingSuccessAlert = ref(false);
+const bookingError = ref<string | null>(null);
+const lastBookingId = ref<number | null>(null);
+
+type BookingSelection = {
+  label: string;
+  coords: Coordinates | null;
+  mode: 'current' | 'custom';
+  seat: number;
 };
 
-const formattedDate = computed(() =>
-  new Intl.DateTimeFormat('en-GB', {
-    weekday: 'short',
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit'
-  }).format(new Date(trip.date))
-);
+const pendingSelection = ref<BookingSelection | null>(null);
 
-const seatLabel = computed(() =>
-  `${trip.seatsAvailable} seat${trip.seatsAvailable === 1 ? '' : 's'} available`
-);
+const deriveInitials = (value: string | null | undefined) => {
+  if (!value) {
+    return 'DD';
+  }
+
+  return value
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(part => part[0]?.toUpperCase() ?? '')
+    .join('') || 'DD';
+};
+
+const formatDriverName = (tripEntity: Trip): string | null => {
+  const rawName = tripEntity.user?.name;
+  if (typeof rawName === 'string') {
+    const trimmed = rawName.trim();
+    if (trimmed) {
+      return trimmed;
+    }
+  }
+  return null;
+};
+
+const formatVehicleLabel = (vehicle: Trip['vehicle']): string | null => {
+  if (!vehicle) {
+    return null;
+  }
+
+  const parts = [vehicle.color, vehicle.model, vehicle.plate_number]
+    .map(value => (typeof value === 'string' ? value.trim() : ''))
+    .filter(Boolean);
+
+  return parts.length ? parts.join(' · ') : null;
+};
+
+const toTripDetailsPayload = (tripEntity: Trip): TripDetailsPayload => {
+  const { userId } = tripStore.getSessionContext();
+  const driverName = formatDriverName(tripEntity);
+  const vehicleLabel = formatVehicleLabel(tripEntity.vehicle) ?? 'Vehicle details coming soon';
+  const normalizedLat = Number(tripEntity.departureLat);
+  const normalizedLng = Number(tripEntity.departureLng);
+  const hasLat = Number.isFinite(normalizedLat);
+  const hasLng = Number.isFinite(normalizedLng);
+  const pickupCoords = hasLat && hasLng
+    ? {
+        lat: normalizedLat,
+        lng: normalizedLng
+      }
+    : null;
+
+  return {
+    ...mapTripToCard(tripEntity, 0, userId ?? null),
+    driver: {
+      name: driverName,
+      initials: driverName ? deriveInitials(driverName) : null,
+      vehicle: vehicleLabel,
+      rating: null
+    },
+    pickupCoords
+  };
+};
+
+const routeChipLabel = computed(() => {
+  if (trip.value.route && trip.value.route !== 'Trip route pending') {
+    return trip.value.route;
+  }
+
+  return `${trip.value?.departure} → ${trip.value?.dropoff}`;
+});
+
+const formattedDate = computed(() => {
+  if (trip.value.datetimeLabel && trip.value.datetimeLabel !== 'Date & time to be confirmed') {
+    return trip.value.datetimeLabel;
+  }
+
+  const segments = [trip.value.date, trip.value.departure].filter(Boolean);
+  return segments.length ? segments.join(' · ') : 'Date & time to be confirmed';
+});
+
+const pickupLabel = computed(() => trip.value.pickup || 'Pickup location pending');
+const dropoffLabel = computed(() => trip.value.dropoff || 'Destination pending');
+const priceLabel = computed(() => trip.value.price || '£0.00');
+const availableSeatCount = computed(() => {
+  const seats = trip.value.seats;
+  if (typeof seats === 'number') {
+    return Math.max(0, Math.floor(seats));
+  }
+  const numericValue = Number(seats);
+  return Number.isFinite(numericValue) ? Math.max(0, Math.floor(numericValue)) : 0;
+});
+const seatsLabel = computed(() => {
+  if (typeof trip.value.seats === 'number' && trip.value.seats > 0) {
+    return `${trip.value.seats} seat${trip.value.seats === 1 ? '' : 's'} available`;
+  }
+
+  return trip.value.seatsLabel ?? 'Seat availability not provided';
+});
 
 const detailItems = computed(() => [
   {
@@ -121,33 +304,127 @@ const detailItems = computed(() => [
   {
     id: 'pickup',
     label: 'Pickup Point',
-    value: trip.pickupPoint,
+    value: pickupLabel.value,
     icon: navigateOutline,
-    accent: 'mint'
+    accent: 'mint',
+    helper: 'Pickup is confirmed during booking'
   },
   {
     id: 'destination',
     label: 'Destination',
-    value: trip.destinationAddress,
+    value: dropoffLabel.value,
     icon: flagOutline,
     accent: 'mint'
   },
   {
     id: 'price',
     label: 'Price per Seat',
-    value: `£${trip.pricePerSeat.toFixed(2)}`,
+    value: priceLabel.value,
     icon: cashOutline,
     accent: 'mint'
   },
   {
     id: 'seats',
     label: 'Available Seats',
-    value: seatLabel.value,
+    value: seatsLabel.value,
     icon: peopleOutline,
     accent: 'sunny',
     highlight: true
   }
 ]);
+
+const driverName = computed(() => trip.value.driver?.name ?? (trip.value.role === 'carOwner' ? 'Your trip' : 'Trip host'));
+const driverInitials = computed(() => trip.value.driver?.initials ?? deriveInitials(driverName.value));
+const driverVehicle = computed(() => trip.value.driver?.vehicle ?? 'Vehicle details coming soon');
+const driverRating = computed(() => {
+  const rating = trip.value.driver?.rating;
+  return typeof rating === 'number' && !Number.isNaN(rating) ? rating.toFixed(1) : null;
+});
+
+const openPickupSheet = () => {
+  pickupSheetOpen.value = true;
+};
+
+const closePickupSheet = () => {
+  pickupSheetOpen.value = false;
+};
+
+const parsePriceValue = (value: string) => {
+  const numeric = Number(String(value).replace(/[^0-9.]/g, ''));
+  return Number.isFinite(numeric) ? Number(numeric.toFixed(2)) : 0;
+};
+
+const buildPickupPayload = (selection: BookingSelection | null) => {
+  if (!selection || selection.mode !== 'custom' || !selection.coords) {
+    return {};
+  }
+
+  return {
+    pickup_point: {
+      label: selection.label,
+      lat: selection.coords.lat,
+      lng: selection.coords.lng
+    },
+    pickup_lat_lng: `${selection.coords.lat},${selection.coords.lng}`
+  };
+};
+
+const submitBooking = async () => {
+  if (isBooking.value) {
+    return;
+  }
+
+  const token = userStore.session?.token;
+  if (!token) {
+    bookingError.value = 'Please sign in to book a seat.';
+    return;
+  }
+
+  const selection = pendingSelection.value;
+  const { pickup_point, pickup_lat_lng } = buildPickupPayload(selection);
+  const requestedSeats = Math.max(1, Math.floor(selection?.seat ?? 1));
+  const seatsToBook = availableSeatCount.value > 0 ? Math.min(requestedSeats, availableSeatCount.value) : requestedSeats;
+
+  const payload = {
+    tripId: trip.value.id,
+    seat: seatsToBook,
+    price: parsePriceValue(trip.value.price),
+    pickup_point,
+    pickup_lat_lng,
+    user_id: userStore.session?.user.id || null
+  };
+
+  try {
+    isBooking.value = true;
+    const booking = await createBooking(payload, token);
+    lastBookingId.value = booking.id;
+    bookingSuccessAlert.value = true;
+  } catch (error) {
+    console.error('Booking failed', error);
+    bookingError.value = error instanceof Error ? error.message : 'Unable to complete booking.';
+  } finally {
+    isBooking.value = false;
+  }
+};
+
+const handlePickupConfirmed = (payload: BookingSelection) => {
+  pendingSelection.value = payload;
+  trip.value.pickup = payload.label;
+  trip.value.pickupCoords = payload.coords;
+  closePickupSheet();
+  void submitBooking();
+};
+
+const handleSuccessAlertDismiss = () => {
+  bookingSuccessAlert.value = false;
+  if (lastBookingId.value) {
+    router.replace({ name: 'booked-trip-details', params: { id: lastBookingId.value } });
+  }
+};
+
+const clearBookingError = () => {
+  bookingError.value = null;
+};
 
 const goBack = () => {
   if (router.options.history.state.back) {
@@ -157,9 +434,20 @@ const goBack = () => {
   }
 };
 
-const requestSeat = () => {
-  console.info(`[Trip ${trip.id}] Request to join triggered`);
-};
+
+onMounted(async () => {
+  const foundTrip = await tripStore.getTripById(tripId);
+  if (foundTrip) {
+    const details = toTripDetailsPayload(foundTrip);
+    trip.value = details;
+    basePickupSnapshot.value = {
+      label: details.pickup,
+      coords: details.pickupCoords ?? null
+    };
+  } else {
+    console.warn(`Trip with ID ${tripId} not found in store.`);
+  }
+});
 </script>
 
 <style scoped>
@@ -348,6 +636,12 @@ const requestSeat = () => {
   color: #d98006;
 }
 
+.detail-helper {
+  margin: 6px 0 0;
+  font-size: 0.75rem;
+  color: #7b849c;
+}
+
 .cta-footer {
   --background: transparent;
   /* padding-bottom: env(safe-area-inset-bottom); */
@@ -376,4 +670,5 @@ const requestSeat = () => {
   color: #7b839c;
   font-size: 0.85rem;
 }
+
 </style>

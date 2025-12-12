@@ -34,44 +34,65 @@
           </div>
 
           <div class="input-grid">
-            <ion-input class="input-field" v-model="form.plate" label="License Plate" label-placement="stacked"
+            <ion-input class="input-field" v-model="form.plateNumber" label="License Plate" label-placement="stacked"
               placeholder="e.g., AB12 CDE" />
-            <ion-input class="input-field" v-model="form.seats" label="Available Seats" label-placement="stacked"
+            <ion-input class="input-field" v-model="form.capacity" label="Available Seats" label-placement="stacked"
               placeholder="e.g., 3" type="number" />
           </div>
         </section>
         <div class="action-bar">
-          <ion-button expand="block" size="large" color="success" :disabled="!isValid" @click="saveVehicle">
-            Save Vehicle
+          <ion-button
+            expand="block"
+            size="large"
+            color="success"
+            class="text-white"
+            :disabled="!isValid || saving"
+            @click="saveVehicle"
+          >
+            <ion-spinner v-if="saving" name="crescent" class="mr-2" />
+            <span>{{ saving ? 'Saving…' : 'Save Vehicle' }}</span>
           </ion-button>
         </div>
       </div>
     </ion-content>
+    <ion-toast
+      :is-open="toastOpen"
+      :message="toastMessage"
+      :color="toastColor"
+      duration="2500"
+      @didDismiss="closeToast"
+    />
   </ion-page>
 </template>
 
 <script setup lang="ts">
-import { IonButton, IonContent, IonIcon, IonInput, IonPage } from '@ionic/vue';
+import { IonButton, IonContent, IonIcon, IonInput, IonPage, IonSpinner, IonToast } from '@ionic/vue';
 import { cameraOutline } from 'ionicons/icons';
 import { computed, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import AppBackHeader from '@/components/AppBackHeader.vue';
+import { useVehicleStore } from '@/stores/vehicleStore';
+import { storeToRefs } from 'pinia';
+import { useToast } from '@/composables/useToast';
 
 const router = useRouter();
+const vehicleStore = useVehicleStore();
+const { saving } = storeToRefs(vehicleStore);
+const { toastMessage, toastColor, toastOpen, showToast, closeToast } = useToast('success');
 
 const form = reactive({
   make: '',
   model: '',
   year: '',
   color: '',
-  plate: '',
-  seats: '',
-  image: ''
+  plateNumber: '',
+  capacity: ''
 });
 
 const previewImage = ref('');
+const imageFile = ref<File | null>(null);
 
-const isValid = computed(() => form.make.trim() && form.model.trim() && form.plate.trim());
+const isValid = computed(() => form.model.trim() && form.plateNumber.trim());
 
 const goBack = () => {
   router.back();
@@ -82,7 +103,7 @@ const handleFile = (event: Event) => {
   const file = input.files?.[0];
   if (!file) return;
 
-  form.image = file.name;
+  imageFile.value = file;
 
   const reader = new FileReader();
   reader.onload = () => {
@@ -92,9 +113,42 @@ const handleFile = (event: Event) => {
   input.value = '';
 };
 
-const saveVehicle = () => {
-  console.info('Vehicle saved', { ...form });
-  goBack();
+const resetForm = () => {
+  form.make = '';
+  form.model = '';
+  form.year = '';
+  form.color = '';
+  form.plateNumber = '';
+  form.capacity = '';
+  previewImage.value = '';
+  imageFile.value = null;
+};
+
+const buildPayload = () => {
+  return {
+    make: form.make ? form.make.trim() : null,
+    model: form.model.trim(),
+    plateNumber: form.plateNumber.trim(),
+    color: form.color ? form.color.trim() : null,
+    year: form.year ? form.year.trim() : null,
+    capacity: form.capacity ? Number(form.capacity) : null
+  };
+};
+
+const saveVehicle = async () => {
+  if (!isValid.value || saving.value) {
+    return;
+  }
+
+  try {
+    await vehicleStore.addVehicle(buildPayload(), imageFile.value);
+    showToast('Vehicle saved', 'success');
+    resetForm();
+    goBack();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unable to save vehicle.';
+    showToast(message, 'danger');
+  }
 };
 </script>
 

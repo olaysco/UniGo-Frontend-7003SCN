@@ -7,7 +7,8 @@
         <p class="trip-price">Price: {{ trip.price }}</p>
       </div>
       <div class="map-preview" :class="trip.mapVariant">
-        <div class="map-route"></div>
+        <img v-if="photoSrc" :src="photoSrc" alt="" class="map-photo" loading="lazy" />
+        <div v-else class="map-route"></div>
       </div>
     </div>
 
@@ -40,11 +41,11 @@
 </template>
 
 <script setup lang="ts">
+import { ref, watch } from 'vue';
 import { IonIcon } from '@ionic/vue';
 import { useRouter } from 'vue-router';
 import { peopleOutline } from 'ionicons/icons';
-
-type ViewerRole = 'coRider' | 'carOwner';
+import { getPlacePhotoUri } from '@/utils/places';
 
 export interface Passenger {
   id: number;
@@ -54,46 +55,97 @@ export interface Passenger {
 }
 
 export type RoleOption = 'coRider' | 'carOwner';
-export type TripStatus = 'pending' | 'confirmed' | 'past' | 'active' | 'upcoming';
+export type TripStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'completed'
+  | 'cancelled'
+  | 'past'
+  | 'active'
+  | 'upcoming';
 
 export interface TripCardData {
-  id: number;
+  id: number | string;
   datetimeLabel: string;
   route: string;
   price: string;
-  statusVariant: 'confirmed' | 'pending' | 'completed' | 'active' | 'upcoming';
+  statusVariant: 'confirmed' | 'pending' | 'completed' | 'cancelled' | 'active' | 'upcoming';
   seatsLabel?: string;
   passengers: Passenger[];
   mapVariant: 'variant-a' | 'variant-b';
   state: 'active' | 'past';
   status: TripStatus;
   role: RoleOption;
+  depPointPlaceId?: string;
+  arrPointPlaceId?: string;
+  requests: any[];
+  confirmed: any[];
+  total: string;
+  pickup: string;
+  dropoff: string;
+  date: string;
+  departure: string;
+  seats: number;
+  bookingId?: string | number | null;
+  bookingStatus?: string | number | null;
 }
+
+
+
 
 interface Props {
   trip: TripCardData;
-  viewerRole?: ViewerRole;
   routeName?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  viewerRole: 'coRider',
   routeName: ''
 });
 
 const router = useRouter();
+const photoSrc = ref<string | null>(null);
+let activeRequestId = 0;
+
+const loadPhoto = async () => {
+  if (typeof window === 'undefined' || !props.trip.depPointPlaceId) {
+    photoSrc.value = null; 
+    return;
+  }
+
+  const requestId = ++activeRequestId;
+  try {
+    const uri = await getPlacePhotoUri(props.trip.depPointPlaceId);
+    if (requestId === activeRequestId) {
+      photoSrc.value = uri;
+    }
+  } catch (error) {
+    console.error('Error loading place photo:', error);
+    if (requestId === activeRequestId) {
+      photoSrc.value = null; 
+    }
+  }
+};
+
+watch(() => [props.trip.depPointPlaceId], () => {
+  loadPhoto();
+}, { immediate: true });
+
+
 
 const openDetails = () => {
+  console.log('Opening details for trip:', props.trip);
   if (props.routeName) {
     router.push({ name: props.routeName, params: { id: props.trip.id } });
     return;
   }
 
-  const fallbackRoute = props.viewerRole === 'carOwner' ? 'owner-trip-details' : 'booked-trip-details';
+  const fallbackRoute = props.trip.role === 'carOwner' ? 'owner-trip-details' : 'booked-trip-details';
+  const detailId =
+    fallbackRoute === 'booked-trip-details' ? props.trip.bookingId ?? props.trip.id : props.trip.id;
   router.push({
     name: fallbackRoute,
-    params: { id: props.trip.id },
-    query: { role: props.viewerRole, status: props.trip.status }
+    params: { id: detailId },
+    query: { role: props.trip.role, status: props.trip.status }
   });
 };
 </script>
@@ -154,10 +206,18 @@ const openDetails = () => {
   position: relative;
   flex-shrink: 0;
   background: linear-gradient(130deg, #f2f6ff, #dcefee);
+  overflow: hidden;
 }
 
 .map-preview.variant-b {
   background: linear-gradient(145deg, #fdf1d8, #e0f3ff);
+}
+
+.map-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .map-route {
@@ -207,6 +267,11 @@ const openDetails = () => {
 .status-pill.is-completed {
   background: #edf0f5;
   color: #556070;
+}
+
+.status-pill.is-cancelled {
+  background: #fde7eb;
+  color: #b42318;
 }
 
 .status-pill.is-active {

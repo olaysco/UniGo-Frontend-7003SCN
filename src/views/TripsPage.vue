@@ -27,12 +27,17 @@
       </section>
 
       <section class="trip-list ion-padding">
-        <div v-if="filteredTrips.length" class="trip-stack">
+        <div v-if="roleLoading" class="loading-state">
+          <ion-spinner name="crescent" aria-hidden="true" />
+          <p>Loading your trips...</p>
+        </div>
+        <div v-else-if="filteredTrips.length" class="trip-stack">
           <TripCard v-for="trip in filteredTrips" :key="trip.id" :trip="trip" :viewer-role="activeRole" />
         </div>
         <div v-else class="empty-state">
-          <p>No trips yet under this filter. Try switching roles or create a new journey.</p>
-          <ion-button color="secondary" shape="round" @click="goToSearch">
+          <p v-if="activeRoleError">{{ activeRoleError }}</p>
+          <p v-else>No trips yet under this filter. Try switching roles or create a new journey.</p>
+          <ion-button v-if="activeRole === 'coRider'" color="secondary" shape="round" @click="goToSearch">
             Find Trips
           </ion-button>
         </div>
@@ -42,7 +47,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   IonButton,
@@ -50,13 +55,21 @@ import {
   IonLabel,
   IonPage,
   IonSegment,
-  IonSegmentButton
+  IonSegmentButton,
+  IonSpinner,
+  onIonViewWillEnter
 } from '@ionic/vue';
 import type { SegmentChangeEventDetail } from '@ionic/vue';
 import TripCard, { TripCardData, RoleOption, TripStatus } from '@/components/TripCard.vue';
 import AppBackHeader from '@/components/AppBackHeader.vue';
+import { useTripStore } from '@/stores/tripStore';
+import { useUserStore } from '@/stores/userStore';
+import { storeToRefs } from 'pinia';
 
 const router = useRouter();
+const tripStore = useTripStore();
+const userStore = useUserStore();
+const { tripCards, loading: ownerLoading, error: ownerError } = storeToRefs(tripStore);
 
 const roleOptions: Array<{ value: RoleOption; label: string }> = [
   { value: 'coRider', label: 'Co-Rider' },
@@ -71,7 +84,6 @@ const roleStatusTabs: Record<RoleOption, Array<{ value: TripStatus; label: strin
   ],
   carOwner: [
     { value: 'active', label: 'Active' },
-    { value: 'upcoming', label: 'Upcoming' },
     { value: 'past', label: 'Past' }
   ]
 };
@@ -80,105 +92,65 @@ const activeRole = ref<RoleOption>('coRider');
 const activeStatus = ref<TripStatus>(roleStatusTabs[activeRole.value][0].value);
 const statusTabs = computed(() => roleStatusTabs[activeRole.value]);
 
-const trips = ref<TripCardData[]>([
-  {
-    id: 101,
-    datetimeLabel: 'Tue, 28 May · 08:30 AM',
-    route: 'Coventry to Birmingham',
-    price: '£5.00',
-    status: 'pending',
-    statusVariant: 'pending',
-    passengers: [
-      { id: 1, name: 'Alex Doe', initials: 'AD', color: '#fde7d9' }
-    ],
-    seatsLabel: 'Waiting for driver',
-    mapVariant: 'variant-a',
-    state: 'active',
-    role: 'coRider'
-  },
-  {
-    id: 102,
-    datetimeLabel: 'Thu, 30 May · 17:00 PM',
-    route: 'Leamington Spa to Coventry',
-    price: '£4.20',
-    status: 'confirmed',
-    statusVariant: 'confirmed',
-    passengers: [
-      { id: 2, name: 'Jamie W', initials: 'JW', color: '#d9ecf7' }
-    ],
-    seatsLabel: '1/3 seats',
-    mapVariant: 'variant-b',
-    state: 'active',
-    role: 'coRider'
-  },
-  {
-    id: 201,
-    datetimeLabel: 'Mon, 03 Jun · 07:30 AM',
-    route: 'Coventry Campus to Rugby',
-    price: '£6.50',
-    status: 'active',
-    statusVariant: 'active',
-    passengers: [],
-    seatsLabel: '2/3 seats requested',
-    mapVariant: 'variant-b',
-    state: 'active',
-    role: 'carOwner'
-  },
-  {
-    id: 202,
-    datetimeLabel: 'Fri, 17 May · 18:10 PM',
-    route: 'Coventry to London',
-    price: '£12.00',
-    status: 'past',
-    statusVariant: 'completed',
-    passengers: [],
-    seatsLabel: 'Completed ride',
-    mapVariant: 'variant-a',
-    state: 'past',
-    role: 'coRider'
-  },
-  {
-    id: 203,
-    datetimeLabel: 'Sat, 08 Jun · 10:00 AM',
-    route: 'Coventry Centre to BHX Airport',
-    price: '£8.00',
-    status: 'upcoming',
-    statusVariant: 'upcoming',
-    passengers: [],
-    seatsLabel: '1/4 seats booked',
-    mapVariant: 'variant-a',
-    state: 'active',
-    role: 'carOwner'
-  },
-  {
-    id: 204,
-    datetimeLabel: 'Wed, 01 May · 12:00 PM',
-    route: 'Coventry to Warwick',
-    price: '£4.80',
-    status: 'past',
-    statusVariant: 'completed',
-    passengers: [],
-    seatsLabel: 'Completed ride',
-    mapVariant: 'variant-b',
-    state: 'past',
-    role: 'carOwner'
+const riderTrips = computed(() => tripStore.riderTripCards);
+const riderLoading = computed(() => tripStore.riderLoading);
+const riderLoaded = computed(() => tripStore.riderLoaded);
+const riderError = computed(() => tripStore.riderError);
+
+const ownerTrips = computed(() => tripCards.value.filter(trip => trip.role === 'carOwner'));
+const roleTripMap = computed<Record<RoleOption, TripCardData[]>>(() => ({
+  coRider: riderTrips.value,
+  carOwner: ownerTrips.value
+}));
+
+const matchesStatus = (trip: TripCardData, status: TripStatus, role: RoleOption) => {
+  if (role === 'carOwner') {
+    if (status === 'past') {
+      return trip.state === 'past';
+    }
+
+    return trip.state === 'active';
   }
-]);
+
+  return trip.status === status;
+};
 
 const filteredTrips = computed(() =>
-  trips.value.filter(
-    trip => trip.role === activeRole.value && trip.status === activeStatus.value
-  )
+  roleTripMap.value[activeRole.value].filter(trip => matchesStatus(trip, activeStatus.value, activeRole.value))
 );
 
 const statusCounts = computed<Record<TripStatus, number>>(() => {
+  const roleTrips = roleTripMap.value[activeRole.value];
   return statusTabs.value.reduce((acc, tab) => {
-    acc[tab.value] = trips.value.filter(
-      trip => trip.role === activeRole.value && trip.status === tab.value
-    ).length;
+    acc[tab.value] = roleTrips.filter(trip => matchesStatus(trip, tab.value, activeRole.value)).length;
     return acc;
   }, {} as Record<TripStatus, number>);
 });
+
+const roleLoading = computed(() =>
+  activeRole.value === 'coRider' ? riderLoading.value : ownerLoading.value
+);
+
+const activeRoleError = computed(() =>
+  activeRole.value === 'coRider' ? riderError.value : ownerError.value
+);
+
+const ensureRoleTrips = async (role: RoleOption, force = false) => {
+  if (role === 'carOwner') {
+    try {
+      await tripStore.fetchTrips(force);
+    } catch (error) {
+      console.error('Unable to load owner trips', error);
+    }
+    return;
+  }
+
+  try {
+    await tripStore.fetchRiderTrips(force);
+  } catch (error) {
+    console.error('Unable to load rider trips', error);
+  }
+};
 
 const handleRoleChange = (event: CustomEvent<SegmentChangeEventDetail>) => {
   if (!event.detail.value) return;
@@ -186,6 +158,7 @@ const handleRoleChange = (event: CustomEvent<SegmentChangeEventDetail>) => {
   const nextTabs = roleStatusTabs[activeRole.value];
   const existing = nextTabs.find(tab => tab.value === activeStatus.value);
   activeStatus.value = (existing?.value ?? nextTabs[0].value) as TripStatus;
+  void ensureRoleTrips(activeRole.value);
 };
 
 const handleStatusChange = (event: CustomEvent<SegmentChangeEventDetail>) => {
@@ -200,6 +173,16 @@ const goToSearch = () => {
 const goBack = () => {
   router.back();
 };
+
+onMounted(() => {
+  void ensureRoleTrips('coRider');
+  void ensureRoleTrips('carOwner');
+});
+
+onIonViewWillEnter(() => {
+  void ensureRoleTrips('coRider', true);
+  void ensureRoleTrips('carOwner', true);
+});
 </script>
 
 <style scoped>
@@ -253,6 +236,16 @@ const goBack = () => {
   display: flex;
   flex-direction: column;
   gap: 18px;
+}
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 60px 0;
+  color: #7c8598;
 }
 
 .empty-state {

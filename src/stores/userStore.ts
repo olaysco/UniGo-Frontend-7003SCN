@@ -40,6 +40,7 @@ export const useUserStore = defineStore('user', {
       const session = await loginRequest(credentials);
       this.setSession(session);
       await this.fetchProfile(true);
+      console.log('Login successful, session:', session);
       return session;
     },
     async fetchProfile(force = false) {
@@ -55,8 +56,22 @@ export const useUserStore = defineStore('user', {
 
       try {
         const response = await fetchProfileRequest(this.session.token);
-        this.profile = response.user ?? null;
+        const profile = response.user ?? null;
+        this.profile = profile;
         this.profileLoaded = true;
+
+        if (profile && this.session) {
+          const updatedSession: AuthSession = {
+            ...this.session,
+            user: {
+              ...this.session.user,
+              ...profile
+            }
+          };
+
+          this.setSession(updatedSession);
+        }
+
         return this.profile;
       } catch (error) {
         this.profileLoaded = false;

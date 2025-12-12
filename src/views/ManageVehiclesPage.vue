@@ -3,21 +3,34 @@
     <ion-content class="vehicles-page safe-area-scroll">
       <AppBackHeader title="My Vehicles" @back="goBack" />
 
-      <section class="vehicle-list">
+      <section v-if="vehicleList.length" class="vehicle-list">
         <button
-          v-for="vehicle in vehicles"
+          v-for="vehicle in vehicleList"
           :key="vehicle.id"
           type="button"
           class="vehicle-card"
           @click="openVehicleOptions(vehicle)"
         >
-          <img class="vehicle-image" :src="vehicle.image" :alt="vehicle.name" />
+          <img class="vehicle-image" :src="getVehicleImage(vehicle)" :alt="vehicle.name" />
           <div class="vehicle-details">
             <h2>{{ vehicle.name }}</h2>
-            <p>{{ vehicle.plate }} - {{ vehicle.color }}</p>
+            <p>{{ vehicle.plateNumber }}<span v-if="vehicle.color"> • {{ vehicle.color }}</span></p>
           </div>
         </button>
       </section>
+
+      <div v-else-if="isLoadingVehicles" class="vehicle-loading">
+        <ion-spinner name="crescent" />
+        <p>Loading your vehicles…</p>
+      </div>
+
+      <div v-else class="vehicle-empty">
+        <p class="vehicle-empty__title">No vehicles yet</p>
+        <p class="vehicle-empty__subtitle">Add your first car to start sharing rides.</p>
+        <ion-button color="success" expand="block" class="vehicle-empty__cta text-white" @click="goToAddVehicle">
+          Add a vehicle
+        </ion-button>
+      </div>
 
       <ion-fab slot="fixed" vertical="bottom" horizontal="end">
         <ion-fab-button color="success" @click="goToAddVehicle">
@@ -35,97 +48,139 @@
     >
       <ion-content>
         <div v-if="selectedVehicle" class="pane-content ion-padding">
-        <div class="vehicle-media">
-          <img :src="previewImage || selectedVehicle.image" :alt="selectedVehicle.name" />
-          <ion-button class="media-edit" size="small" fill="solid" color="dark" @click="handleEditImage">
-            <ion-icon :icon="createOutline" aria-hidden="true" />
-          </ion-button>
-          <input
-            ref="imageInputRef"
-            type="file"
-            accept="image/*"
-            class="image-file-input"
-            @change="handleImageSelected"
-          />
-        </div>
-        <form class="pane-form">
-          <div class="form-field">
-            <label for="vehicle-make">Make</label>
-            <div class="input-shell">
-              <ion-input id="vehicle-make" v-model="vehicleForm.make" class="text-input" />
-            </div>
+          <div class="vehicle-media">
+            <img :src="previewImage || getVehicleImage(selectedVehicle)" :alt="selectedVehicle.name" />
+            <ion-button
+              class="media-edit"
+              size="small"
+              fill="solid"
+              color="dark"
+              :disabled="isUploadingImage"
+              @click="handleEditImage"
+            >
+              <ion-icon :icon="createOutline" aria-hidden="true" />
+            </ion-button>
+            <input
+              ref="imageInputRef"
+              type="file"
+              accept="image/*"
+              class="image-file-input"
+              @change="handleImageSelected"
+            />
           </div>
-          <div class="form-field">
-            <label for="vehicle-model">Model</label>
-            <div class="input-shell">
-              <ion-input id="vehicle-model" v-model="vehicleForm.model" class="text-input" />
+          <form class="pane-form">
+            <div class="form-field">
+              <label for="vehicle-make">Make</label>
+              <div class="input-shell">
+                <ion-input id="vehicle-make" v-model="vehicleForm.make" class="text-input" />
+              </div>
             </div>
-          </div>
-          <div class="form-field">
-            <label for="vehicle-year">Year</label>
-            <div class="input-shell">
-              <ion-input id="vehicle-year" v-model="vehicleForm.year" type="number" class="text-input" />
+            <div class="form-field">
+              <label for="vehicle-model">Model</label>
+              <div class="input-shell">
+                <ion-input id="vehicle-model" v-model="vehicleForm.model" class="text-input" />
+              </div>
             </div>
-          </div>
-          <div class="form-field">
+            <div class="form-field">
+              <label for="vehicle-year">Year</label>
+              <div class="input-shell">
+                <ion-input id="vehicle-year" v-model="vehicleForm.year" type="number" class="text-input" />
+              </div>
+            </div>
+            <div class="form-field">
             <label for="vehicle-plate">License Plate</label>
             <div class="input-shell">
-              <ion-input id="vehicle-plate" v-model="vehicleForm.plate" class="text-input" />
+              <ion-input id="vehicle-plate" v-model="vehicleForm.plateNumber" class="text-input" />
             </div>
           </div>
-          <div class="form-field">
-            <label for="vehicle-color">Color</label>
+            <div class="form-field">
+              <label for="vehicle-color">Color</label>
+              <div class="input-shell">
+                <ion-input id="vehicle-color" v-model="vehicleForm.color" class="text-input" />
+              </div>
+            </div>
+            <div class="form-field">
+            <label for="vehicle-capacity">Available Seats</label>
             <div class="input-shell">
-              <ion-input id="vehicle-color" v-model="vehicleForm.color" class="text-input" />
+              <ion-input id="vehicle-capacity" v-model="vehicleForm.capacity" type="number" class="text-input" />
             </div>
           </div>
-        </form>
-        <div class="pane-actions">
-          <ion-button expand="block" fill="solid" color="light" @click="closeVehiclePane" class="w-full">
-            <span class="pane-actions__text">Cancel</span>
-          </ion-button>
-          <ion-button expand="block" color="secondary" :disabled="isUpdateDisabled" @click="handleUpdateVehicle" class="w-full text-white">
-            Update Vehicle
-          </ion-button>
+          </form>
+          <div class="pane-actions">
+            <ion-button expand="block" fill="solid" color="light" @click="closeVehiclePane" class="w-full">
+              <span class="pane-actions__text">Cancel</span>
+            </ion-button>
+            <ion-button
+              expand="block"
+              color="secondary"
+              :disabled="isUpdateDisabled || isUpdatingSelection"
+              @click="handleUpdateVehicle"
+              class="w-full text-white"
+            >
+              <ion-spinner v-if="isUpdatingSelection" name="crescent" class="mr-2" />
+              <span>{{ isUpdatingSelection ? 'Updating…' : 'Update Vehicle' }}</span>
+            </ion-button>
+          </div>
+          <button class="delete-button" type="button" :disabled="isDeletingSelection" @click="handleRemoveVehicle">
+            {{ isDeletingSelection ? 'Deleting…' : 'Delete Vehicle' }}
+          </button>
         </div>
-        <button class="delete-button" type="button" @click="handleRemoveVehicle">Delete Vehicle</button>
-      </div>
       </ion-content>
     </ion-modal>
+    <ion-toast :is-open="toastOpen" :message="toastMessage" :color="toastColor" duration="2500" @didDismiss="closeToast" />
   </ion-page>
 </template>
 
 <script setup lang="ts">
-import { IonButton, IonContent, IonFab, IonFabButton, IonIcon, IonInput, IonModal, IonPage } from '@ionic/vue';
+import {
+  IonButton,
+  IonContent,
+  IonFab,
+  IonFabButton,
+  IonIcon,
+  IonInput,
+  IonModal,
+  IonPage,
+  IonSpinner,
+  IonToast
+} from '@ionic/vue';
 import { add, createOutline } from 'ionicons/icons';
-import { reactive, ref, computed } from 'vue';
+import { reactive, ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { storeToRefs } from 'pinia';
 import AppBackHeader from '@/components/AppBackHeader.vue';
+import { useVehicleStore } from '@/stores/vehicleStore';
+import type { Vehicle } from '@/services/vehicleService';
+import { useToast } from '@/composables/useToast';
 
 const router = useRouter();
+const vehicleStore = useVehicleStore();
+const { vehicles, loading, loaded } = storeToRefs(vehicleStore);
+const { toastMessage, toastColor, toastOpen, showToast, closeToast } = useToast('success');
 
-const vehicles = [
-  {
-    id: 'tesla-model-3',
-    name: 'Tesla Model 3',
-    make: 'Tesla',
-    model: 'Model 3',
-    year: '2022',
-    plate: 'CV23CD',
-    color: 'White',
-    image: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=200&q=80'
-  },
-  {
-    id: 'ford-focus',
-    name: 'Ford Focus',
-    make: 'Ford',
-    model: 'Focus',
-    year: '2019',
-    plate: 'CV12AB',
-    color: 'Blue',
-    image: 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=200&q=80'
-  }
-];
+const selectedVehicle = ref<Vehicle | null>(null);
+const imageInputRef = ref<HTMLInputElement | null>(null);
+const previewImage = ref('');
+const vehicleForm = reactive({
+  make: '',
+  model: '',
+  year: '',
+  plateNumber: '',
+  color: '',
+  capacity: '',
+  imageFile: null as File | null
+});
+
+const isUpdateDisabled = computed(() => {
+  return !vehicleForm.model.trim() || !vehicleForm.plateNumber.trim();
+});
+
+const vehicleList = computed(() => vehicles.value);
+const isLoadingVehicles = computed(() => loading.value && !loaded.value);
+const isUpdatingSelection = computed(() => (selectedVehicle.value ? vehicleStore.isUpdating(selectedVehicle.value.id) : false));
+const isDeletingSelection = computed(() => (selectedVehicle.value ? vehicleStore.isDeleting(selectedVehicle.value.id) : false));
+const isUploadingImage = computed(() => (selectedVehicle.value ? vehicleStore.isUploading(selectedVehicle.value.id) : false));
+const fallbackImage = '/vehicle-placeholder.svg';
 
 const goBack = () => {
   router.back();
@@ -135,30 +190,39 @@ const goToAddVehicle = () => {
   router.push('/add-vehicle');
 };
 
-const selectedVehicle = ref<(typeof vehicles)[number] | null>(null);
-const imageInputRef = ref<HTMLInputElement | null>(null);
-const previewImage = ref('');
-const vehicleForm = reactive({
-  make: '',
-  model: '',
-  year: '',
-  plate: '',
-  color: '',
-  imageFile: null as File | null
+const getVehicleImage = (vehicle: Vehicle) => {
+  let url = JSON.parse(vehicle.imageUrl || '[]');
+  if (Array.isArray(url) && url.length > 0) {
+    url = url[0];
+  }
+
+  return url.length ? url : fallbackImage;
+};
+
+const loadVehicles = async () => {
+  try {
+    await vehicleStore.fetchVehicles();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unable to load vehicles.';
+    showToast(message, 'danger');
+  }
+};
+
+onMounted(() => {
+  if (!loaded.value) {
+    loadVehicles();
+  }
 });
 
-const isUpdateDisabled = computed(() => {
-  return !vehicleForm.make.trim() || !vehicleForm.model.trim() || !vehicleForm.plate.trim();
-});
-
-const openVehicleOptions = (vehicle: (typeof vehicles)[number]) => {
+const openVehicleOptions = (vehicle: Vehicle) => {
   selectedVehicle.value = vehicle;
-  previewImage.value = vehicle.image;
+  previewImage.value = getVehicleImage(vehicle);
   vehicleForm.make = vehicle.make || '';
   vehicleForm.model = vehicle.model || '';
   vehicleForm.year = vehicle.year || '';
-  vehicleForm.plate = vehicle.plate;
-  vehicleForm.color = vehicle.color;
+  vehicleForm.plateNumber = vehicle.plateNumber || '';
+  vehicleForm.color = vehicle.color || '';
+  vehicleForm.capacity = vehicle.capacity?.toString() || '';
   vehicleForm.imageFile = null;
 };
 
@@ -169,6 +233,9 @@ const closeVehiclePane = () => {
 };
 
 const handleEditImage = () => {
+  if (isUploadingImage.value) {
+    return;
+  }
   imageInputRef.value?.click();
 };
 
@@ -181,29 +248,52 @@ const handleImageSelected = (event: Event) => {
   reader.onload = () => {
     previewImage.value = typeof reader.result === 'string' ? reader.result : '';
   };
+  console.log('File selected:', file);
   reader.readAsDataURL(file);
   input.value = '';
 };
 
-const handleRemoveVehicle = () => {
-  if (!selectedVehicle.value) return;
-  console.info('Remove vehicle', selectedVehicle.value.id);
-  closeVehiclePane();
+const buildPayload = () => {
+  return {
+    make: vehicleForm.make ? vehicleForm.make.trim() : null,
+    model: vehicleForm.model.trim(),
+    year: vehicleForm.year ? vehicleForm.year.trim() : null,
+    plateNumber: vehicleForm.plateNumber.trim(),
+    color: vehicleForm.color ? vehicleForm.color.trim() : null,
+    capacity: vehicleForm.capacity ? Number(vehicleForm.capacity) : null
+  };
 };
 
-const handleUpdateVehicle = () => {
-  if (!selectedVehicle.value) return;
-  console.info('Update vehicle', selectedVehicle.value.id, {
-    ...vehicleForm,
-    previewImage: previewImage.value
-  });
-  closeVehiclePane();
+const handleRemoveVehicle = async () => {
+  if (!selectedVehicle.value || isDeletingSelection.value) return;
+
+  try {
+    await vehicleStore.deleteVehicle(selectedVehicle.value.id);
+    showToast('Vehicle removed', 'success');
+    closeVehiclePane();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unable to delete vehicle.';
+    showToast(message, 'danger');
+  }
+};
+
+const handleUpdateVehicle = async () => {
+  if (!selectedVehicle.value || isUpdatingSelection.value) return;
+
+  try {
+    await vehicleStore.updateVehicle(selectedVehicle.value.id, buildPayload(), vehicleForm.imageFile);
+    showToast('Vehicle updated', 'success');
+    closeVehiclePane();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unable to update vehicle.';
+    showToast(message, 'danger');
+  }
 };
 </script>
 
 <style scoped>
 ion-content.vehicles-page {
-  --background: #f6f7fb;;
+  --background: #f6f7fb;
   padding-bottom: env(safe-area-inset-bottom);
 }
 
@@ -244,6 +334,7 @@ ion-content.vehicles-page {
   height: 64px;
   border-radius: 16px;
   object-fit: cover;
+  background: #edf2f7;
 }
 
 .vehicle-details {
@@ -261,6 +352,38 @@ ion-content.vehicles-page {
   margin: 4px 0 0;
   color: #766d6c;
   font-size: 0.95rem;
+}
+
+.vehicle-loading,
+.vehicle-empty {
+  padding: 40px 24px 120px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+.vehicle-loading p {
+  margin: 0;
+  color: #516080;
+}
+
+.vehicle-empty__title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #121d2c;
+  margin: 0;
+}
+
+.vehicle-empty__subtitle {
+  margin: 0;
+  color: #5f6b84;
+}
+
+.vehicle-empty__cta {
+  margin-top: 8px;
+  width: 100%;
 }
 
 ion-fab {
@@ -376,5 +499,9 @@ ion-fab-button {
   font-weight: 700;
   font-size: 1rem;
   margin-top: 4px;
+}
+
+.delete-button:disabled {
+  opacity: 0.6;
 }
 </style>
