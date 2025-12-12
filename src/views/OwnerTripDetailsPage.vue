@@ -133,9 +133,20 @@
       </div>
     </ion-content>
     <ion-content v-else class="ion-padding">
-      <AppBackHeader title="Trip Not Found" @back="goBack" />
-      <div class="page-body">
-        <p>Could not find the requested trip.</p>
+      <AppBackHeader title="Trip Overview" subtitle="Trip Information" @back="goBack" />
+      <div class="page-body" v-if="loadingTrip">
+        <section class="overview-card skeleton-card">
+          <ion-skeleton-text animated class="skeleton-line" style="width: 60%" />
+          <ion-skeleton-text animated class="skeleton-line" style="width: 80%" />
+          <ion-skeleton-text animated class="skeleton-line" style="width: 40%" />
+        </section>
+        <section class="segment-card skeleton-card">
+          <ion-skeleton-text animated class="skeleton-line" style="width: 100%" />
+          <ion-skeleton-text animated class="skeleton-line" style="width: 90%" />
+        </section>
+      </div>
+      <div class="page-body" v-else>
+        <p>{{ tripError || 'Could not find the requested trip.' }}</p>
       </div>
     </ion-content>
   </ion-page>
@@ -149,12 +160,14 @@ import {
   IonIcon,
   IonLabel,
   IonPage,
-  IonSpinner
+  IonSpinner,
+  IonSkeletonText
 } from '@ionic/vue';
 import { checkmarkCircle, locationOutline, navigateOutline, people } from 'ionicons/icons';
 import { useRoute, useRouter } from 'vue-router';
 import AppBackHeader from '@/components/AppBackHeader.vue';
-import { useTripStore } from '@/stores/tripStore';
+import { useTripStore, mapTripToCard } from '@/stores/tripStore';
+import type { TripCardData } from '@/components/TripCard.vue';
 import { computed, onMounted, ref } from 'vue';
 import { fetchTripBookings, type BookingResponse } from '@/services/bookingService';
 import { useUserStore } from '@/stores/userStore';
@@ -165,8 +178,12 @@ const tripStore = useTripStore();
 const userStore = useUserStore();
 
 const tripId = route.params.id as string;
-const trip = computed(() => tripStore.tripCards.find(t => String(t.id) === tripId));
+const remoteTrip = ref<TripCardData | null>(null);
+const localTrip = computed(() => tripStore.tripCards.find(t => String(t.id) === tripId));
+const trip = computed(() => localTrip.value ?? remoteTrip.value ?? null);
 const isPastTrip = computed(() => trip.value?.state === 'past');
+const loadingTrip = ref(false);
+const tripError = ref<string | null>(null);
 
 type BookingStatus = 'pending' | 'confirmed' | 'past';
 
@@ -238,6 +255,33 @@ const bookings = ref<BookingCardItem[]>([]);
 const bookingsLoading = ref(false);
 const bookingsError = ref<string | null>(null);
 
+const ensureTripData = async () => {
+  if (trip.value || loadingTrip.value) {
+    return;
+  }
+
+  const token = userStore.session?.token;
+  const currentUserId = userStore.session?.user?.id ?? userStore.profile?.id ?? null;
+  if (!token) {
+    return;
+  }
+
+  loadingTrip.value = true;
+  tripError.value = null;
+  try {
+    const tripEntity = await tripStore.getTripById(tripId);
+    if (tripEntity) {
+      remoteTrip.value = mapTripToCard(tripEntity, 0, currentUserId);
+    } else {
+      tripError.value = 'Trip not found.';
+    }
+  } catch (error) {
+    tripError.value = error instanceof Error ? error.message : 'Unable to load trip.';
+  } finally {
+    loadingTrip.value = false;
+  }
+};
+
 const loadBookings = async () => {
   const token = userStore.session?.token;
   if (!tripId || !token) {
@@ -257,8 +301,9 @@ const loadBookings = async () => {
   }
 };
 
-onMounted(() => {
-  void loadBookings();
+onMounted(async () => {
+  await ensureTripData();
+  await loadBookings();
 });
 
 const pendingBookings = computed(() => bookings.value.filter(booking => booking.status === 'pending'));
@@ -443,6 +488,15 @@ const rejectRider = (id: string | number) => {
 
 .state-message ion-spinner {
   --color: #6b7280;
+}
+
+.skeleton-card {
+  gap: 8px;
+}
+
+.skeleton-line {
+  border-radius: 12px;
+  height: 16px;
 }
 
 
