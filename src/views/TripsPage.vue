@@ -62,10 +62,9 @@ import {
 import type { SegmentChangeEventDetail } from '@ionic/vue';
 import TripCard, { TripCardData, RoleOption, TripStatus } from '@/components/TripCard.vue';
 import AppBackHeader from '@/components/AppBackHeader.vue';
-import { useTripStore, mapBookedTripToCard } from '@/stores/tripStore';
+import { useTripStore } from '@/stores/tripStore';
 import { useUserStore } from '@/stores/userStore';
 import { storeToRefs } from 'pinia';
-import { fetchUserBookedTrips } from '@/services/tripService';
 
 const router = useRouter();
 const tripStore = useTripStore();
@@ -93,13 +92,11 @@ const activeRole = ref<RoleOption>('coRider');
 const activeStatus = ref<TripStatus>(roleStatusTabs[activeRole.value][0].value);
 const statusTabs = computed(() => roleStatusTabs[activeRole.value]);
 
-const riderTrips = ref<TripCardData[]>([]);
-const riderLoading = ref(false);
-const riderLoaded = ref(false);
-const riderError = ref<string | null>(null);
-let latestRiderRequestId = 0;
+const riderTrips = computed(() => tripStore.riderTripCards);
+const riderLoading = computed(() => tripStore.riderLoading);
+const riderLoaded = computed(() => tripStore.riderLoaded);
+const riderError = computed(() => tripStore.riderError);
 
-const currentUserId = computed(() => userStore.session?.user?.id ?? userStore.profile?.id ?? null);
 const ownerTrips = computed(() => tripCards.value.filter(trip => trip.role === 'carOwner'));
 const roleTripMap = computed<Record<RoleOption, TripCardData[]>>(() => ({
   coRider: riderTrips.value,
@@ -138,48 +135,6 @@ const activeRoleError = computed(() =>
   activeRole.value === 'coRider' ? riderError.value : ownerError.value
 );
 
-const loadRiderTrips = async (force = false) => {
-  if (riderLoading.value || (riderLoaded.value && !force)) {
-    return riderTrips.value;
-  }
-
-  const token = userStore.session?.token ?? null;
-  const userId = currentUserId.value;
-  if (!token || userId === null || userId === undefined) {
-    riderTrips.value = [];
-    riderLoaded.value = true;
-    return riderTrips.value;
-  }
-
-  riderLoading.value = true;
-  riderError.value = null;
-  const requestId = ++latestRiderRequestId;
-
-  try {
-    const bookings = await fetchUserBookedTrips(userId, token);
-    if (requestId !== latestRiderRequestId) {
-      return riderTrips.value;
-    }
-
-    riderTrips.value = bookings.map((trip, index) => mapBookedTripToCard(trip, index, userId));
-    riderLoaded.value = true;
-    return riderTrips.value;
-  } catch (error) {
-    if (requestId !== latestRiderRequestId) {
-      return riderTrips.value;
-    }
-
-    const message = error instanceof Error ? error.message : 'Unable to load trips.';
-    riderError.value = message;
-    console.error('Unable to load rider trips', error);
-    return riderTrips.value;
-  } finally {
-    if (requestId === latestRiderRequestId) {
-      riderLoading.value = false;
-    }
-  }
-};
-
 const ensureRoleTrips = async (role: RoleOption, force = false) => {
   if (role === 'carOwner') {
     try {
@@ -190,7 +145,11 @@ const ensureRoleTrips = async (role: RoleOption, force = false) => {
     return;
   }
 
-  await loadRiderTrips(force);
+  try {
+    await tripStore.fetchRiderTrips(force);
+  } catch (error) {
+    console.error('Unable to load rider trips', error);
+  }
 };
 
 const handleRoleChange = (event: CustomEvent<SegmentChangeEventDetail>) => {

@@ -341,6 +341,7 @@ const bookingReference = computed(() => (bookingRecord.value ? `#${bookingRecord
 const bookingStatusState = computed(() =>
   resolveStatusState(bookingRecord.value?.status ?? null, bookingRecord.value?.status_text ?? null)
 );
+const isPastTrip = computed(() => tripSnapshot.value?.state === 'past');
 const bookingStatusLabel = computed(() => {
   const cleanedText = bookingRecord.value?.status_text?.trim();
   if (cleanedText) {
@@ -349,6 +350,17 @@ const bookingStatusLabel = computed(() => {
   return fallbackStatusLabels[bookingStatusState.value];
 });
 const bookingStatusTitle = computed(() => {
+  if (isPastTrip.value) {
+    if (bookingStatusState.value === 'confirmed' || bookingStatusState.value === 'completed') {
+      return 'Trip completed';
+    }
+    if (bookingStatusState.value === 'pending') {
+      return 'Awaiting driver decision';
+    }
+    if (bookingStatusState.value === 'cancelled') {
+      return 'Booking cancelled';
+    }
+  }
   switch (bookingStatusState.value) {
     case 'pending':
       return 'Awaiting confirmation';
@@ -430,10 +442,12 @@ const totalPaid = computed(() => formatCurrency(Number(bookingRecord.value?.pric
 const mapImageSrc = computed(() => '/map-placeholder.png');
 
 const hasBooking = computed(() => Boolean(bookingRecord.value));
-const isPastTrip = computed(() => tripSnapshot.value?.state === 'past');
+const isRateableTrip = computed(
+  () => isPastTrip.value && (bookingStatusState.value === 'confirmed' || bookingStatusState.value === 'completed')
+);
 const showStatusBanner = computed(() => hasBooking.value && !isLoading.value && !loadError.value);
 const showReceiptButton = computed(() => hasBooking.value && !loadError.value);
-const showRateButton = computed(() => showReceiptButton.value && isPastTrip.value);
+const showRateButton = computed(() => showReceiptButton.value && isRateableTrip.value);
 const showCancelButton = computed(() => showReceiptButton.value && !isPastTrip.value);
 
 const goBack = () => {
@@ -444,40 +458,12 @@ const contactDriver = (type: 'call' | 'message') => {
   console.info(`Contact driver via ${type}`);
 };
 
-const viewReceipt = async () => {
+const viewReceipt = () => {
   const id = bookingId.value;
-  const token = userStore.session?.token;
-
-  if (!id || !token) {
+  if (!id) {
     return;
   }
-
-  const url = `/bookings/${id}/receipt?format=pdf`;
-
-  try {
-    const response = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error('Unable to load receipt.');
-    }
-
-    const blob = await response.blob();
-    const downloadUrl = window.URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = downloadUrl;
-    anchor.target = '_blank';
-    anchor.download = `booking-${id}-receipt.pdf`;
-    document.body.appendChild(anchor);
-    anchor.click();
-    document.body.removeChild(anchor);
-    window.URL.revokeObjectURL(downloadUrl);
-  } catch (error) {
-    console.error('Unable to download receipt', error);
-  }
+  router.push({ name: 'booking-receipt', params: { id } });
 };
 
 const cancelBooking = () => {
