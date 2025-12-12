@@ -28,6 +28,7 @@ onMounted(async () => {
     center: props.center,
     zoom: props.zoom ?? 10,
     disableDefaultUI: props.disableDefaultUI ?? false,
+    mapTypeControl: false,
   });
 
   directionsService = new google.maps.DirectionsService();
