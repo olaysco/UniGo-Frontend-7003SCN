@@ -55,14 +55,21 @@ export interface Passenger {
 }
 
 export type RoleOption = 'coRider' | 'carOwner';
-export type TripStatus = 'pending' | 'confirmed' | 'past' | 'active' | 'upcoming';
+export type TripStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'completed'
+  | 'cancelled'
+  | 'past'
+  | 'active'
+  | 'upcoming';
 
 export interface TripCardData {
   id: number | string;
   datetimeLabel: string;
   route: string;
   price: string;
-  statusVariant: 'confirmed' | 'pending' | 'completed' | 'active' | 'upcoming';
+  statusVariant: 'confirmed' | 'pending' | 'completed' | 'cancelled' | 'active' | 'upcoming';
   seatsLabel?: string;
   passengers: Passenger[];
   mapVariant: 'variant-a' | 'variant-b';
@@ -133,9 +140,11 @@ const openDetails = () => {
   }
 
   const fallbackRoute = props.trip.role === 'carOwner' ? 'owner-trip-details' : 'booked-trip-details';
+  const detailId =
+    fallbackRoute === 'booked-trip-details' ? props.trip.bookingId ?? props.trip.id : props.trip.id;
   router.push({
     name: fallbackRoute,
-    params: { id: props.trip.id },
+    params: { id: detailId },
     query: { role: props.trip.role, status: props.trip.status }
   });
 };
@@ -258,6 +267,11 @@ const openDetails = () => {
 .status-pill.is-completed {
   background: #edf0f5;
   color: #556070;
+}
+
+.status-pill.is-cancelled {
+  background: #fde7eb;
+  color: #b42318;
 }
 
 .status-pill.is-active {

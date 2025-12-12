@@ -14,14 +14,17 @@ const statusById: Record<number, TripStatus> = {
 };
 
 const bookingStatusById: Record<number, TripStatus> = {
-  1: 'pending',
+  0: 'pending',
+  1: 'cancelled',
   2: 'confirmed',
-  3: 'past'
+  3: 'completed'
 };
 
 const statusVariantMap: Record<TripStatus, TripCardData['statusVariant']> = {
   pending: 'pending',
   confirmed: 'confirmed',
+  completed: 'completed',
+  cancelled: 'cancelled',
   past: 'completed',
   active: 'active',
   upcoming: 'upcoming'
@@ -136,11 +139,14 @@ const normalizeBookingStatus = (status: Trip['status'] | null | undefined): Trip
   }
 
   const value = String(status ?? '').toLowerCase();
+  if (value.includes('cancel') || value.includes('reject') || value.includes('decline')) {
+    return 'cancelled';
+  }
+  if (value.includes('complete') || value.includes('finish') || value.includes('past')) {
+    return 'completed';
+  }
   if (value.includes('confirm') || value.includes('accept')) {
     return 'confirmed';
-  }
-  if (value.includes('cancel') || value.includes('reject') || value.includes('past') || value.includes('complete')) {
-    return 'past';
   }
   return 'pending';
 };
@@ -167,7 +173,7 @@ export const mapTripToCard = (
   const departureDate = new Date(trip.departureTime);
   const now = Date.now();
   const isPast = baseStatus === 'past' || departureDate.getTime() < now;
-  const status = isPast ? 'past' : baseStatus;
+  const status = baseStatus === 'cancelled' || baseStatus === 'completed' ? baseStatus : isPast ? 'past' : baseStatus;
   const seatsLabel = overrides.seatsLabel ?? (trip.availability ? `${trip.availability} seats available` : undefined);
 
   return {

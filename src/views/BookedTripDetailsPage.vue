@@ -184,16 +184,16 @@ type BookingBannerState = 'pending' | 'confirmed' | 'completed' | 'cancelled';
 
 const statusStateByCode: Record<number, BookingBannerState> = {
   0: 'pending',
-  1: 'confirmed',
-  2: 'completed',
-  3: 'cancelled'
+  1: 'cancelled',
+  2: 'confirmed',
+  3: 'completed'
 };
 
 const fallbackStatusLabels: Record<BookingBannerState, string> = {
   pending: 'Pending confirmation',
+  cancelled: 'Cancelled',
   confirmed: 'Confirmed',
-  completed: 'Trip completed',
-  cancelled: 'Cancelled'
+  completed: 'Trip completed'
 };
 
 const formatCurrency = (amount: number) =>

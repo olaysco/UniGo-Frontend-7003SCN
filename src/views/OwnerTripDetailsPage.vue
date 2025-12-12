@@ -203,7 +203,7 @@ const showCancelConfirm = ref(false);
 const canceling = ref(false);
 const cancelError = ref<string | null>(null);
 
-type BookingStatus = 'pending' | 'confirmed' | 'past';
+type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed';
 
 interface BookingCardItem {
   id: string | number;
@@ -215,9 +215,10 @@ interface BookingCardItem {
 }
 
 const bookingStatusMap: Record<number, BookingStatus> = {
-  0: 'confirmed',
-  1: 'past',
-  2: 'past'
+  0: 'pending',
+  1: 'cancelled',
+  2: 'confirmed',
+  3: 'completed'
 };
 
 const bookingColors = ['#d9ecf7', '#fde7d9', '#e5e7ff', '#fce5ff', '#ddf7e8'];
@@ -233,11 +234,14 @@ const normalizeBookingStatus = (status: BookingResponse['status'] | string | nul
   }
 
   const value = String(status ?? '').toLowerCase();
+  if (value.includes('cancel') || value.includes('reject') || value.includes('decline')) {
+    return 'cancelled';
+  }
+  if (value.includes('complete') || value.includes('finish') || value.includes('past')) {
+    return 'completed';
+  }
   if (value.includes('confirm') || value.includes('active')) {
     return 'confirmed';
-  }
-  if (value.includes('past') || value.includes('complete') || value.includes('cancel')) {
-    return 'past';
   }
   return 'pending';
 };
@@ -325,7 +329,7 @@ onMounted(async () => {
 
 const pendingBookings = computed(() => bookings.value.filter(booking => booking.status === 'pending'));
 const confirmedBookings = computed(() =>
-  bookings.value.filter(booking => booking.status === 'confirmed' || booking.status === 'past')
+  bookings.value.filter(booking => booking.status === 'confirmed' || booking.status === 'completed')
 );
 const pendingCount = computed(() => pendingBookings.value.length);
 const confirmedCount = computed(() => confirmedBookings.value.length);
