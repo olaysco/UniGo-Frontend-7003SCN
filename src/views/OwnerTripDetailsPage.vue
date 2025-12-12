@@ -126,9 +126,16 @@
         </section>
 
         <section class="actions">
-          <ion-button expand="block" size="large" @click="editTrip" color="danger" :disabled="isPastTrip">
+          <ion-button
+            expand="block"
+            size="large"
+            color="danger"
+            @click="openCancelConfirm"
+            :disabled="isPastTrip || canceling || loadingTrip || !trip"
+          >
             Cancel Trip
           </ion-button>
+          <p v-if="cancelError" class="state-message is-error">{{ cancelError }}</p>
         </section>
       </div>
     </ion-content>
@@ -149,11 +156,18 @@
         <p>{{ tripError || 'Could not find the requested trip.' }}</p>
       </div>
     </ion-content>
+    <ion-alert
+      :is-open="showCancelConfirm"
+      header="Cancel trip?"
+      message="This will notify your riders and remove the trip from the schedule."
+      :buttons="cancelAlertButtons"
+    />
   </ion-page>
 </template>
 
 <script setup lang="ts">
 import {
+  IonAlert,
   IonButton,
   IonChip,
   IonContent,
@@ -163,6 +177,7 @@ import {
   IonSpinner,
   IonSkeletonText
 } from '@ionic/vue';
+import type { AlertButton } from '@ionic/core';
 import { checkmarkCircle, locationOutline, navigateOutline, people } from 'ionicons/icons';
 import { useRoute, useRouter } from 'vue-router';
 import AppBackHeader from '@/components/AppBackHeader.vue';
@@ -184,6 +199,9 @@ const trip = computed(() => localTrip.value ?? remoteTrip.value ?? null);
 const isPastTrip = computed(() => trip.value?.state === 'past');
 const loadingTrip = ref(false);
 const tripError = ref<string | null>(null);
+const showCancelConfirm = ref(false);
+const canceling = ref(false);
+const cancelError = ref<string | null>(null);
 
 type BookingStatus = 'pending' | 'confirmed' | 'past';
 
@@ -197,10 +215,9 @@ interface BookingCardItem {
 }
 
 const bookingStatusMap: Record<number, BookingStatus> = {
-  0: 'pending',
-  1: 'pending',
-  2: 'confirmed',
-  3: 'past'
+  0: 'confirmed',
+  1: 'past',
+  2: 'past'
 };
 
 const bookingColors = ['#d9ecf7', '#fde7d9', '#e5e7ff', '#fce5ff', '#ddf7e8'];
@@ -216,10 +233,10 @@ const normalizeBookingStatus = (status: BookingResponse['status'] | string | nul
   }
 
   const value = String(status ?? '').toLowerCase();
-  if (value.includes('confirm')) {
+  if (value.includes('confirm') || value.includes('active')) {
     return 'confirmed';
   }
-  if (value.includes('past') || value.includes('complete')) {
+  if (value.includes('past') || value.includes('complete') || value.includes('cancel')) {
     return 'past';
   }
   return 'pending';
@@ -313,12 +330,57 @@ const confirmedBookings = computed(() =>
 const pendingCount = computed(() => pendingBookings.value.length);
 const confirmedCount = computed(() => confirmedBookings.value.length);
 
-const goBack = () => {
-  router.back();
+const cancelTripAction = async () => {
+  if (!tripId || canceling.value) {
+    return;
+  }
+
+  cancelError.value = null;
+  canceling.value = true;
+  try {
+    await tripStore.cancelTrip(tripId);
+    remoteTrip.value = null;
+    await tripStore.fetchTrips(true);
+    await ensureTripData();
+    await loadBookings();
+  } catch (error) {
+    cancelError.value = error instanceof Error ? error.message : 'Unable to cancel trip.';
+  } finally {
+    canceling.value = false;
+  }
 };
 
-const editTrip = () => {
-  console.info('Navigate to edit trip');
+const openCancelConfirm = () => {
+  if (!trip.value || isPastTrip.value || canceling.value || loadingTrip.value) {
+    return;
+  }
+  cancelError.value = null;
+  showCancelConfirm.value = true;
+};
+
+const cancelAlertButtons = computed<AlertButton[]>(() => [
+  {
+    text: 'No',
+    role: 'cancel',
+    handler: () => {
+      showCancelConfirm.value = false;
+    }
+  },
+  {
+    text: canceling.value ? 'Cancelling...' : 'Yes, cancel trip',
+    role: 'destructive',
+    handler: () => {
+      showCancelConfirm.value = false;
+      if (!canceling.value) {
+        void cancelTripAction();
+      }
+      return false;
+    }
+  }
+]);
+
+const goBack = () => {
+  router.back();
 };
 
 const messageRider = (id: string | number) => {
