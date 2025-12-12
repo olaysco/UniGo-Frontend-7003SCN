@@ -54,8 +54,11 @@
             <div class="sheet-card">
 
               <div v-if="isSearching" class="sheet-loading">
-                <ion-spinner name="crescent" aria-hidden="true" />
-                <p>Searching trips...</p>
+                <div class="skeleton-trip" v-for="n in 2" :key="n">
+                  <ion-skeleton-text animated class="skeleton-line" style="width: 60%" />
+                  <ion-skeleton-text animated class="skeleton-line" style="width: 80%" />
+                  <ion-skeleton-text animated class="skeleton-line" style="width: 40%" />
+                </div>
               </div>
 
               <Swiper
@@ -93,7 +96,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { IonContent, IonIcon, IonPage, IonSpinner } from '@ionic/vue';
+import { IonContent, IonIcon, IonPage, IonSkeletonText } from '@ionic/vue';
 import { Swiper, SwiperSlide } from 'swiper/vue';
 import 'swiper/css';
 import { locateOutline, searchOutline } from 'ionicons/icons';
@@ -431,16 +434,24 @@ const onDropoffPlaceChanged = (place: AutocompletePlace) => {
 .sheet-loading {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
+  gap: 14px;
   color: #6d7388;
-  padding: 12px;
+  padding: 20px 12px;
 }
 
-.sheet-loading ion-spinner {
-  width: 30px;
-  height: 30px;
-  color: #136f4a;
+.skeleton-trip {
+  width: 100%;
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 16px;
+  box-shadow: 0 10px 25px rgba(20, 28, 45, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.skeleton-trip .skeleton-line {
+  height: 14px;
+  border-radius: 8px;
 }
 </style>
