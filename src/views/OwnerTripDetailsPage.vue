@@ -46,6 +46,7 @@
             <p>Ride requests</p>
             <small>{{ pendingCount }} pending</small>
           </header>
+          <p v-if="bookingActionError" class="state-message is-error">{{ bookingActionError }}</p>
           <div v-if="bookingsLoading" class="state-message">
             <ion-spinner name="crescent" aria-hidden="true" />
             <p>Loading bookings...</p>
@@ -125,6 +126,33 @@
           </template>
         </section>
 
+        <section class="requests-card rejected-card">
+          <header class="text-slate-900">
+            <p>Rejected riders</p>
+            <small>{{ rejectedCount }} declined</small>
+          </header>
+          <div v-if="bookingsLoading && !pendingBookings.length" class="state-message">
+            <ion-spinner name="crescent" aria-hidden="true" />
+            <p>Loading bookings...</p>
+          </div>
+          <template v-else>
+            <article v-for="rider in rejectedBookings" :key="rider.id" class="request-card">
+              <div class="request-main">
+                <div class="request-avatar" :style="{ backgroundColor: rider.avatarColor }">
+                  <span>{{ rider.initials }}</span>
+                </div>
+                <div>
+                  <p class="name">{{ rider.name }}</p>
+                  <p class="meta">{{ rider.seatLabel }}</p>
+                </div>
+              </div>
+            </article>
+            <p v-if="!rejectedBookings.length && !bookingsLoading" class="state-message">
+              No rejected riders yet.
+            </p>
+          </template>
+        </section>
+
         <section class="actions">
           <ion-button
             expand="block"
@@ -162,6 +190,22 @@
       message="This will notify your riders and remove the trip from the schedule."
       :buttons="cancelAlertButtons"
     />
+    <ion-alert
+      :is-open="showBookingActionAlert"
+      :header="bookingActionHeader"
+      :message="bookingActionMessage"
+      :buttons="bookingActionButtons"
+      css-class="booking-action-alert"
+      @didDismiss="closeBookingActionAlert"
+    />
+    <ion-toast
+      :is-open="toastOpen"
+      :message="toastMessage"
+      :color="toastColor"
+      duration="2200"
+      position="top"
+      @didDismiss="closeToast"
+    />
   </ion-page>
 </template>
 
@@ -175,7 +219,8 @@ import {
   IonLabel,
   IonPage,
   IonSpinner,
-  IonSkeletonText
+  IonSkeletonText,
+  IonToast
 } from '@ionic/vue';
 import type { AlertButton } from '@ionic/core';
 import { checkmarkCircle, locationOutline, navigateOutline, people } from 'ionicons/icons';
@@ -184,8 +229,9 @@ import AppBackHeader from '@/components/AppBackHeader.vue';
 import { useTripStore, mapTripToCard } from '@/stores/tripStore';
 import type { TripCardData } from '@/components/TripCard.vue';
 import { computed, onMounted, ref } from 'vue';
-import { fetchTripBookings, type BookingResponse } from '@/services/bookingService';
+import { confirmBooking, fetchTripBookings, rejectBooking, type BookingResponse } from '@/services/bookingService';
 import { useUserStore } from '@/stores/userStore';
+import { useToast } from '@/composables/useToast';
 
 const router = useRouter();
 const route = useRoute();
@@ -202,8 +248,15 @@ const tripError = ref<string | null>(null);
 const showCancelConfirm = ref(false);
 const canceling = ref(false);
 const cancelError = ref<string | null>(null);
+const showBookingActionAlert = ref(false);
+const bookingActionType = ref<'confirm' | 'reject'>('reject');
+const bookingActionId = ref<string | number | null>(null);
+const bookingActionLoading = ref(false);
+const bookingActionError = ref<string | null>(null);
 
-type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed';
+const { toastMessage, toastColor, toastOpen, showToast, closeToast } = useToast('success');
+
+type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'rejected' | 'completed';
 
 interface BookingCardItem {
   id: string | number;
@@ -218,12 +271,16 @@ const bookingStatusMap: Record<number, BookingStatus> = {
   0: 'pending',
   1: 'cancelled',
   2: 'confirmed',
-  3: 'completed'
+  3: 'rejected'
 };
 
 const bookingColors = ['#d9ecf7', '#fde7d9', '#e5e7ff', '#fce5ff', '#ddf7e8'];
 
-const normalizeBookingStatus = (status: BookingResponse['status'] | string | null | undefined): BookingStatus => {
+const normalizeBookingStatus = (
+  status: BookingResponse['status'] | string | null | undefined,
+  statusText: string | null | undefined
+): BookingStatus => {
+    console.log('normalizeBookingStatus', status);
   if (typeof status === 'number' && bookingStatusMap[status]) {
     return bookingStatusMap[status];
   }
@@ -233,17 +290,7 @@ const normalizeBookingStatus = (status: BookingResponse['status'] | string | nul
     return bookingStatusMap[numeric];
   }
 
-  const value = String(status ?? '').toLowerCase();
-  if (value.includes('cancel') || value.includes('reject') || value.includes('decline')) {
-    return 'cancelled';
-  }
-  if (value.includes('complete') || value.includes('finish') || value.includes('past')) {
-    return 'completed';
-  }
-  if (value.includes('confirm') || value.includes('active')) {
-    return 'confirmed';
-  }
-  return 'pending';
+  return statusText === 'rejected' ? 'rejected' : statusText === 'cancelled' ? 'cancelled' : 'pending';
 };
 
 const getInitials = (name: string) => {
@@ -267,7 +314,7 @@ const mapBookingToCard = (booking: BookingResponse, index: number): BookingCardI
     name,
     initials: getInitials(name),
     seatLabel: formatSeatLabel(booking.seat),
-    status: normalizeBookingStatus(booking.status),
+    status: normalizeBookingStatus(booking.status, booking.status_text),
     avatarColor: bookingColors[index % bookingColors.length]
   };
 };
@@ -276,8 +323,8 @@ const bookings = ref<BookingCardItem[]>([]);
 const bookingsLoading = ref(false);
 const bookingsError = ref<string | null>(null);
 
-const ensureTripData = async () => {
-  if (trip.value || loadingTrip.value) {
+const ensureTripData = async (force = false) => {
+  if ((trip.value && !force) || loadingTrip.value) {
     return;
   }
 
@@ -315,6 +362,7 @@ const loadBookings = async () => {
   try {
     const response = await fetchTripBookings(tripId, token);
     bookings.value = response.map(mapBookingToCard);
+    bookingActionError.value = null;
   } catch (error) {
     bookingsError.value = error instanceof Error ? error.message : 'Unable to load bookings.';
   } finally {
@@ -325,14 +373,17 @@ const loadBookings = async () => {
 onMounted(async () => {
   await ensureTripData();
   await loadBookings();
+  console.log(bookings.value);
 });
 
 const pendingBookings = computed(() => bookings.value.filter(booking => booking.status === 'pending'));
 const confirmedBookings = computed(() =>
   bookings.value.filter(booking => booking.status === 'confirmed' || booking.status === 'completed')
 );
+const rejectedBookings = computed(() => bookings.value.filter(booking => booking.status === 'rejected'));
 const pendingCount = computed(() => pendingBookings.value.length);
 const confirmedCount = computed(() => confirmedBookings.value.length);
+const rejectedCount = computed(() => rejectedBookings.value.length);
 
 const cancelTripAction = async () => {
   if (!tripId || canceling.value) {
@@ -390,14 +441,111 @@ const goBack = () => {
 const messageRider = (id: string | number) => {
   console.info('message rider', id);
 };
+const closeBookingActionAlert = () => {
+  showBookingActionAlert.value = false;
+  bookingActionId.value = null;
+  bookingActionLoading.value = false;
+  bookingActionError.value = null;
+};
+
+const requestBookingAction = (type: 'confirm' | 'reject', id: string | number) => {
+  if (!trip.value || isPastTrip.value) {
+    return;
+  }
+
+  bookingActionError.value = null;
+  bookingActionType.value = type;
+  bookingActionId.value = id;
+  showBookingActionAlert.value = true;
+};
 
 const confirmRider = (id: string | number) => {
-  console.info('confirm rider', id);
+  requestBookingAction('confirm', id);
 };
 
 const rejectRider = (id: string | number) => {
-  console.info('reject rider', id);
+  requestBookingAction('reject', id);
 };
+
+const performBookingAction = async () => {
+  if (bookingActionId.value === null || bookingActionId.value === undefined || bookingActionLoading.value) {
+    return;
+  }
+
+  const token = userStore.session?.token;
+  if (!token) {
+    bookingActionError.value = 'Please sign in to manage bookings.';
+    closeBookingActionAlert();
+    return;
+  }
+
+  bookingActionLoading.value = true;
+  bookingActionError.value = null;
+  const actionId = bookingActionId.value;
+  const type = bookingActionType.value;
+
+  try {
+    if (type === 'confirm') {
+      await confirmBooking(actionId, token);
+    } else {
+      await rejectBooking(actionId, token);
+    }
+
+    await ensureTripData(true);
+    await loadBookings();
+    showToast(
+      type === 'confirm' ? 'Ride confirmed successfully.' : 'Ride request rejected.',
+      type === 'confirm' ? 'success' : 'warning'
+    );
+    closeBookingActionAlert();
+  } catch (error) {
+    bookingActionError.value = error instanceof Error ? error.message : 'Unable to update booking.';
+  } finally {
+    bookingActionLoading.value = false;
+  }
+};
+
+const bookingActionHeader = computed(() =>
+  bookingActionType.value === 'reject' ? 'Reject rider?' : 'Confirm rider?'
+);
+
+const bookingActionMessage = computed(() =>
+  bookingActionType.value === 'reject'
+    ? 'This rider will be notified that their request was declined. This cannot be undone.'
+    : 'Confirming will hold a seat for this rider and share your contact details.'
+);
+
+const bookingActionButtons = computed<AlertButton[]>(() => [
+  {
+    text: 'No',
+    role: 'cancel',
+    handler: () => {
+      if (bookingActionLoading.value) {
+        return false;
+      }
+      bookingActionId.value = null;
+      closeBookingActionAlert();
+      return false;
+    }
+  },
+  {
+    text:
+      bookingActionLoading.value
+        ? bookingActionType.value === 'reject'
+          ? 'Rejecting...'
+          : 'Confirming...'
+        : bookingActionType.value === 'reject'
+          ? 'Yes, reject rider'
+          : 'Yes, confirm rider',
+    role: bookingActionType.value === 'reject' ? 'destructive' : undefined,
+    handler: () => {
+      if (!bookingActionLoading.value) {
+        void performBookingAction();
+      }
+      return false;
+    }
+  }
+]);
 </script>
 
 <style scoped>
@@ -449,6 +597,10 @@ const rejectRider = (id: string | number) => {
   border-radius: 24px;
   padding: 18px;
   box-shadow: 0 14px 32px rgba(34, 42, 62, 0.08);
+}
+
+.requests-card.rejected-card {
+  border: 1px solid #fee2e2;
 }
 
 .segment-row {
@@ -569,5 +721,15 @@ const rejectRider = (id: string | number) => {
 
 .actions ion-button {
   --border-radius: 20px;
+}
+
+:global(.booking-action-alert .alert-button-role-cancel) {
+  color: #475569 !important;
+  font-weight: 600;
+}
+
+:global(.booking-action-alert .alert-button:not(.alert-button-role-cancel)) {
+  color: var(--ion-color-secondary, #1fb6ff) !important;
+  font-weight: 600;
 }
 </style>

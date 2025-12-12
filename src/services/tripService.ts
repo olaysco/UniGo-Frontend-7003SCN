@@ -38,10 +38,19 @@ export interface TripApiEntity {
   user?: TripUserApiEntity | null;
 }
 
-export interface TripBookingApiEntity extends TripApiEntity {
+interface TripBookingMetadata {
   booking_id?: string | number | null;
   booking_status?: string | number | null;
 }
+
+interface TripBookingWrapperEntity extends TripBookingMetadata {
+  trip?: TripApiEntity | null;
+}
+
+export type TripBookingApiEntity = (TripApiEntity & TripBookingMetadata) | TripBookingWrapperEntity;
+
+const isTripBookingWrapper = (entity: TripBookingApiEntity): entity is TripBookingWrapperEntity =>
+  'trip' in entity;
 
 export interface TripPayload {
   vehicleId: string | number;
@@ -198,6 +207,28 @@ const pickTripList = (
   return [];
 };
 
+const pickTripBookingList = (
+  payload: TripListResponse | TripBookingApiEntity[] | null | undefined
+): TripBookingApiEntity[] => {
+  if (!payload) {
+    return [];
+  }
+
+  if (Array.isArray(payload)) {
+    return payload as TripBookingApiEntity[];
+  }
+
+  if (payload.data) {
+    return payload.data as TripBookingApiEntity[];
+  }
+
+  if (payload.trips) {
+    return payload.trips as TripBookingApiEntity[];
+  }
+
+  return [];
+};
+
 const buildTripSearchQuery = (params: TripSearchParams = {}): string => {
   const query = new URLSearchParams();
 
@@ -279,15 +310,21 @@ export const fetchUserBookedTrips = async (
     }
   );
 
-  return pickTripList(response).map(entity => {
-    const normalized = normalizeTrip(entity);
-    const bookingEntity = entity as TripBookingApiEntity;
-    return {
-      ...normalized,
-      bookingId: bookingEntity.booking_id ?? null,
-      bookingStatus: bookingEntity.booking_status ?? null
-    };
-  });
+  return pickTripBookingList(response)
+    .map(entity => {
+      const tripEntity = isTripBookingWrapper(entity) ? entity.trip : entity;
+      if (!tripEntity) {
+        return null;
+      }
+
+      const normalized = normalizeTrip(tripEntity);
+      return {
+        ...normalized,
+        bookingId: entity.booking_id ?? null,
+        bookingStatus: entity.booking_status ?? null
+      };
+    })
+    .filter((trip): trip is TripWithBooking => Boolean(trip));
 };
 
 export type { TripSearchParams };

@@ -30,6 +30,8 @@ export interface BookingResponse {
   user?: BookingUser | null;
   status_text?: string | null;
   trip?: Trip | null;
+  payment_method?: string | null;
+  created_at?: string | null;
 }
 
 type BookingPayloadEntity = {
@@ -156,6 +158,34 @@ const pickBookingEntity = (
 
   return payload as BookingResponse | BookingPayloadEntity;
 };
+
+const updateBookingStatus = async (
+  bookingId: number | string,
+  token: string,
+  action: 'confirm' | 'reject'
+): Promise<BookingResponse> => {
+  const response = await apiRequest<BookingSingleResponse | BookingResponse | BookingPayloadEntity>(
+    `/bookings/${bookingId}/${action}`,
+    {
+      method: 'POST',
+      token
+    }
+  );
+
+  const entity = pickBookingEntity(response);
+  const normalized = entity ? normalizeBookingEntity(entity) : null;
+  if (!normalized) {
+    throw new Error('Unable to update booking.');
+  }
+
+  return normalized;
+};
+
+export const confirmBooking = (bookingId: number | string, token: string): Promise<BookingResponse> =>
+  updateBookingStatus(bookingId, token, 'confirm');
+
+export const rejectBooking = (bookingId: number | string, token: string): Promise<BookingResponse> =>
+  updateBookingStatus(bookingId, token, 'reject');
 
 export const fetchBooking = async (
   bookingId: number | string,

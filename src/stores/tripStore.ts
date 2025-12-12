@@ -3,6 +3,7 @@ import {
   fetchTrips as fetchTripsRequest,
   fetchTrip as fetchTripRequest,
   cancelTrip as cancelTripRequest,
+  fetchUserBookedTrips,
   type Trip,
   type TripWithBooking
 } from '@/services/tripService';
@@ -222,6 +223,11 @@ interface TripState {
   loaded: boolean;
   loading: boolean;
   error: string | null;
+  riderTrips: TripCardData[];
+  riderLoaded: boolean;
+  riderLoading: boolean;
+  riderError: string | null;
+  latestRiderRequestId: number;
 }
 
 export const useTripStore = defineStore('trips', {
@@ -229,13 +235,30 @@ export const useTripStore = defineStore('trips', {
     trips: [],
     loaded: false,
     loading: false,
-    error: null
+    error: null,
+    riderTrips: [],
+    riderLoaded: false,
+    riderLoading: false,
+    riderError: null,
+    latestRiderRequestId: 0
   }),
   getters: {
     tripCards: (state): TripCardData[] => {
       const userStore = useUserStore();
       const currentUserId = userStore.session?.user?.id ?? userStore.profile?.id ?? null;
       return state.trips.map((trip, index) => mapTripToCard(trip, index, currentUserId));
+    },
+    riderTripCards: (state): TripCardData[] => state.riderTrips,
+    riderTripStatusCounts: (state): { active: number; past: number } => {
+      const counts = { active: 0, past: 0 };
+      state.riderTrips.forEach(trip => {
+        if (trip.state === 'past' || trip.status === 'cancelled') {
+          counts.past += 1;
+        } else {
+          counts.active += 1;
+        }
+      });
+      return counts;
     }
   },
   actions: {
@@ -299,6 +322,44 @@ export const useTripStore = defineStore('trips', {
 
       await cancelTripRequest(tripId, token);
       this.trips = this.trips.filter(trip => String(trip.id) !== String(tripId));
+    },
+
+    async fetchRiderTrips(force = false) {
+      if (this.riderLoading || (this.riderLoaded && !force)) {
+        return this.riderTrips;
+      }
+
+      const { token, userId } = this.getSessionContext();
+      if (!token || userId === null || userId === undefined) {
+        this.riderTrips = [];
+        this.riderLoaded = true;
+        return this.riderTrips;
+      }
+
+      this.riderLoading = true;
+      this.riderError = null;
+      const requestId = ++this.latestRiderRequestId;
+
+      try {
+        const bookings = await fetchUserBookedTrips(userId, token);
+        if (requestId !== this.latestRiderRequestId) {
+          return this.riderTrips;
+        }
+        this.riderTrips = bookings.map((trip, index) => mapBookedTripToCard(trip, index, userId));
+        this.riderLoaded = true;
+        return this.riderTrips;
+      } catch (error) {
+        if (requestId !== this.latestRiderRequestId) {
+          return this.riderTrips;
+        }
+        const message = error instanceof Error ? error.message : 'Unable to load trips.';
+        this.riderError = message;
+        throw error;
+      } finally {
+        if (requestId === this.latestRiderRequestId) {
+          this.riderLoading = false;
+        }
+      }
     }
   }
 });
