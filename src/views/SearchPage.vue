@@ -188,8 +188,6 @@ function createMarkerIcon(color: string) {
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
-const formatCoords = (coords: LatLngLiteral) => `${coords.lat},${coords.lng}`;
-
 const searchTrips = async (origin: LatLngLiteral, destination: LatLngLiteral) => {
   const requestId = ++latestSearchId;
   isSearching.value = true;
@@ -211,7 +209,6 @@ const searchTrips = async (origin: LatLngLiteral, destination: LatLngLiteral) =>
     }
 
     rides.value = trips.map((trip, index) => mapTripToCard(trip, index, userStore.session?.user?.id ?? null));
-    console.log('Found trips:', rides.value);
   } catch (error) {
     if (requestId !== latestSearchId) {
       return;
@@ -229,7 +226,6 @@ const searchTrips = async (origin: LatLngLiteral, destination: LatLngLiteral) =>
 watch(
   [pickupLocation, dropoffLocation],
   ([origin, destination]) => {
-    console.log('Searching trips from', origin, 'to', destination);
     if (origin && destination) {
       void searchTrips(origin, destination);
     }

@@ -15,7 +15,7 @@
             </ion-chip>
             <ion-chip color="secondary" outline>
               <ion-icon :icon="people" />
-              <ion-label>{{ trip.requests.length }} requests</ion-label>
+              <ion-label>{{ pendingCount }} requests</ion-label>
             </ion-chip>
           </div>
         </section>
@@ -44,56 +44,89 @@
         <section class="requests-card">
           <header class="text-slate-900">
             <p>Ride requests</p>
-            <small>{{ trip.requests.length }} pending</small>
+            <small>{{ pendingCount }} pending</small>
           </header>
-          <article v-for="request in trip.requests" :key="request.id" class="request-card d-flex">
-            <div class="request-main">
-              <img :src="request.avatar" :alt="request.name" />
-              <div>
-                <p class="name">{{ request.name }}</p>
-                <p class="rating">
-                  <ion-icon :icon="star" aria-hidden="true" />
-                  {{ request.rating }} ({{ request.reviews }} reviews)
-                </p>
+          <div v-if="bookingsLoading" class="state-message">
+            <ion-spinner name="crescent" aria-hidden="true" />
+            <p>Loading bookings...</p>
+          </div>
+          <div v-else-if="bookingsError" class="state-message is-error">
+            <p>{{ bookingsError }}</p>
+            <ion-button size="small" fill="clear" @click="loadBookings">Try again</ion-button>
+          </div>
+          <template v-else>
+            <article v-for="request in pendingBookings" :key="request.id" class="request-card d-flex">
+              <div class="request-main">
+                <div class="request-avatar" :style="{ backgroundColor: request.avatarColor }">
+                  <span>{{ request.initials }}</span>
+                </div>
+                <div>
+                  <p class="name">{{ request.name }}</p>
+                  <p class="meta">{{ request.seatLabel }}</p>
+                </div>
               </div>
-            </div>
-            <div class="request-actions">
-              <ion-button expand="block" fill="outline" color="medium" @click="rejectRider(request.id)" class="w-full">
-                Reject
-              </ion-button>
-              <ion-button expand="block" color="secondary" @click="confirmRider(request.id)"  class="w-full">
-                Confirm
-              </ion-button>
-            </div>
-          </article>
+              <div class="request-actions">
+                <ion-button
+                  expand="block"
+                  fill="outline"
+                  color="medium"
+                  @click="rejectRider(request.id)"
+                  class="w-full"
+                  :disabled="isPastTrip"
+                >
+                  Reject
+                </ion-button>
+                <ion-button
+                  expand="block"
+                  color="secondary"
+                  @click="confirmRider(request.id)"
+                  class="w-full"
+                  :disabled="isPastTrip"
+                >
+                  Confirm
+                </ion-button>
+              </div>
+            </article>
+            <p v-if="!pendingBookings.length" class="state-message">
+              All caught up—no new ride requests.
+            </p>
+          </template>
         </section>
 
-        <section v-if="trip.confirmed.length" class="requests-card confirmed-card">
+        <section class="requests-card confirmed-card">
           <header class="text-slate-900">
             <p>Confirmed riders</p>
-            <small>{{ trip.confirmed.length }} joined</small>
+            <small>{{ confirmedCount }} joined</small>
           </header>
-          <article v-for="rider in trip.confirmed" :key="rider.id" class="request-card">
-            <div class="request-main">
-              <img :src="rider.avatar" :alt="rider.name" />
-              <div>
-                <p class="name">{{ rider.name }}</p>
-                <p class="rating">
-                  <ion-icon :icon="star" aria-hidden="true" />
-                  {{ rider.rating }} ({{ rider.reviews }} reviews)
-                </p>
+          <div v-if="bookingsLoading && !pendingBookings.length" class="state-message">
+            <ion-spinner name="crescent" aria-hidden="true" />
+            <p>Loading bookings...</p>
+          </div>
+          <template v-else>
+            <article v-for="rider in confirmedBookings" :key="rider.id" class="request-card">
+              <div class="request-main">
+                <div class="request-avatar" :style="{ backgroundColor: rider.avatarColor }">
+                  <span>{{ rider.initials }}</span>
+                </div>
+                <div>
+                  <p class="name">{{ rider.name }}</p>
+                  <p class="meta">{{ rider.seatLabel }}</p>
+                </div>
               </div>
-            </div>
-            <div class="request-actions">
-              <ion-button expand="block" fill="outline" color="secondary" @click="messageRider(rider.id)" class="w-full">
-                Message
-              </ion-button>
-            </div>
-          </article>
+              <div class="request-actions">
+                <ion-button expand="block" fill="outline" color="secondary" @click="messageRider(rider.id)" class="w-full">
+                  Message
+                </ion-button>
+              </div>
+            </article>
+            <p v-if="!confirmedBookings.length && !bookingsLoading" class="state-message">
+              No confirmed riders yet.
+            </p>
+          </template>
         </section>
 
         <section class="actions">
-          <ion-button expand="block" size="large" @click="editTrip" color="danger">
+          <ion-button expand="block" size="large" @click="editTrip" color="danger" :disabled="isPastTrip">
             Cancel Trip
           </ion-button>
         </section>
@@ -115,20 +148,125 @@ import {
   IonContent,
   IonIcon,
   IonLabel,
-  IonPage
+  IonPage,
+  IonSpinner
 } from '@ionic/vue';
-import { checkmarkCircle, locationOutline, navigateOutline, people, star } from 'ionicons/icons';
+import { checkmarkCircle, locationOutline, navigateOutline, people } from 'ionicons/icons';
 import { useRoute, useRouter } from 'vue-router';
 import AppBackHeader from '@/components/AppBackHeader.vue';
 import { useTripStore } from '@/stores/tripStore';
-import { computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
+import { fetchTripBookings, type BookingResponse } from '@/services/bookingService';
+import { useUserStore } from '@/stores/userStore';
 
 const router = useRouter();
 const route = useRoute();
 const tripStore = useTripStore();
+const userStore = useUserStore();
 
 const tripId = route.params.id as string;
 const trip = computed(() => tripStore.tripCards.find(t => String(t.id) === tripId));
+const isPastTrip = computed(() => trip.value?.state === 'past');
+
+type BookingStatus = 'pending' | 'confirmed' | 'past';
+
+interface BookingCardItem {
+  id: string | number;
+  name: string;
+  initials: string;
+  seatLabel: string;
+  status: BookingStatus;
+  avatarColor: string;
+}
+
+const bookingStatusMap: Record<number, BookingStatus> = {
+  0: 'pending',
+  1: 'pending',
+  2: 'confirmed',
+  3: 'past'
+};
+
+const bookingColors = ['#d9ecf7', '#fde7d9', '#e5e7ff', '#fce5ff', '#ddf7e8'];
+
+const normalizeBookingStatus = (status: BookingResponse['status'] | string | null | undefined): BookingStatus => {
+  if (typeof status === 'number' && bookingStatusMap[status]) {
+    return bookingStatusMap[status];
+  }
+
+  const numeric = Number(status);
+  if (!Number.isNaN(numeric) && bookingStatusMap[numeric]) {
+    return bookingStatusMap[numeric];
+  }
+
+  const value = String(status ?? '').toLowerCase();
+  if (value.includes('confirm')) {
+    return 'confirmed';
+  }
+  if (value.includes('past') || value.includes('complete')) {
+    return 'past';
+  }
+  return 'pending';
+};
+
+const getInitials = (name: string) => {
+  if (!name) return '??';
+  const parts = name.trim().split(/\s+/).slice(0, 2);
+  return parts.map(part => part.charAt(0).toUpperCase()).join('') || '??';
+};
+
+const formatSeatLabel = (seat: number) => {
+  const count = Number(seat) || 0;
+  if (count <= 1) {
+    return '1 seat requested';
+  }
+  return `${count} seats requested`;
+};
+
+const mapBookingToCard = (booking: BookingResponse, index: number): BookingCardItem => {
+  const name = booking.user?.name?.trim() || `Rider #${booking.user_id}`;
+  return {
+    id: booking.id,
+    name,
+    initials: getInitials(name),
+    seatLabel: formatSeatLabel(booking.seat),
+    status: normalizeBookingStatus(booking.status),
+    avatarColor: bookingColors[index % bookingColors.length]
+  };
+};
+
+const bookings = ref<BookingCardItem[]>([]);
+const bookingsLoading = ref(false);
+const bookingsError = ref<string | null>(null);
+
+const loadBookings = async () => {
+  const token = userStore.session?.token;
+  if (!tripId || !token) {
+    bookings.value = [];
+    return;
+  }
+
+  bookingsLoading.value = true;
+  bookingsError.value = null;
+  try {
+    const response = await fetchTripBookings(tripId, token);
+    bookings.value = response.map(mapBookingToCard);
+  } catch (error) {
+    bookingsError.value = error instanceof Error ? error.message : 'Unable to load bookings.';
+  } finally {
+    bookingsLoading.value = false;
+  }
+};
+
+onMounted(() => {
+  void loadBookings();
+});
+
+const pendingBookings = computed(() => bookings.value.filter(booking => booking.status === 'pending'));
+const confirmedBookings = computed(() =>
+  bookings.value.filter(booking => booking.status === 'confirmed' || booking.status === 'past')
+);
+const pendingCount = computed(() => pendingBookings.value.length);
+const confirmedCount = computed(() => confirmedBookings.value.length);
 
 const goBack = () => {
   router.back();
@@ -138,15 +276,15 @@ const editTrip = () => {
   console.info('Navigate to edit trip');
 };
 
-const messageRider = (id: string) => {
+const messageRider = (id: string | number) => {
   console.info('message rider', id);
 };
 
-const confirmRider = (id: string) => {
+const confirmRider = (id: string | number) => {
   console.info('confirm rider', id);
 };
 
-const rejectRider = (id: string) => {
+const rejectRider = (id: string | number) => {
   console.info('reject rider', id);
 };
 </script>
@@ -260,11 +398,15 @@ const rejectRider = (id: string) => {
   align-items: center;
 }
 
-.request-main img {
+.request-avatar {
   width: 48px;
   height: 48px;
   border-radius: 16px;
-  object-fit: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0f172a;
+  font-weight: 700;
 }
 
 .request-main .name {
@@ -273,23 +415,34 @@ const rejectRider = (id: string) => {
   color: #0f172a;
 }
 
-.request-main .rating {
+.request-main .meta {
   margin: 2px 0 0;
-  display: flex;
-  align-items: center;
-  gap: 4px;
   color: #8890a7;
   font-size: 0.9rem;
-}
-
-.request-main .rating ion-icon {
-  color: #f2c94c;
 }
 
 .request-actions {
   display: flex;
   gap: 10px;
   margin-top: 12px;
+}
+
+.state-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+  color: #6b7280;
+  text-align: center;
+}
+
+.state-message.is-error {
+  color: #b91c1c;
+}
+
+.state-message ion-spinner {
+  --color: #6b7280;
 }
 
 
