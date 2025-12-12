@@ -1,18 +1,26 @@
 <template>
   <ion-page>
     <ion-content class="booked-trip-page safe-area-scroll">
-      <AppBackHeader title="Booking Details" subtitle="Ride confirmed" @back="goBack" />
-      <div class="page-body ion-padding">
+      <AppBackHeader title="Booking Details" :subtitle="statusSubtitle" @back="goBack" />
+      <div v-if="isLoading" class="page-body ion-padding page-message">
+        <ion-spinner name="crescent" />
+        <p>Loading booking details…</p>
+      </div>
+      <div v-else-if="loadError" class="page-body ion-padding page-message">
+        <p class="error-text">{{ loadError }}</p>
+        <ion-button color="secondary" fill="clear" @click="reloadBooking">Retry</ion-button>
+      </div>
+      <div v-else class="page-body ion-padding">
         <section v-if="showStatusBanner" class="status-banner">
           <ion-icon :icon="checkmarkCircle" aria-hidden="true" />
           <div>
             <p class="status-title">Booking Confirmed! You're all set.</p>
-            <p class="status-subtitle">Reference {{ booking.reference }} • {{ booking.status }}</p>
+            <p class="status-subtitle">Reference {{ bookingReference }} • {{ bookingStatusLabel }}</p>
           </div>
         </section>
 
         <section class="map-card">
-          <img :src="booking.mapImage" alt="Route preview map" />
+          <img :src="mapImageSrc" alt="Route preview map" />
         </section>
 
         <section class="detail-card">
@@ -21,8 +29,8 @@
               <ion-icon :icon="calendarOutline" aria-hidden="true" />
             </div>
             <div>
-              <p class="detail-title">{{ booking.date }}</p>
-              <p class="detail-meta">{{ booking.departure }} · Est. Arrival {{ booking.arrival }}</p>
+              <p class="detail-title">{{ tripDateLabel }}</p>
+              <p class="detail-meta">{{ departureTimeLabel }} · Est. Arrival {{ arrivalTimeLabel }}</p>
             </div>
           </article>
           <hr />
@@ -31,8 +39,8 @@
               <ion-icon :icon="navigateOutline" aria-hidden="true" />
             </div>
             <div>
-              <p class="detail-title">Pickup: {{ booking.pickup.title }}</p>
-              <p class="detail-meta">{{ booking.pickup.address }}</p>
+              <p class="detail-title">Pickup: {{ pickupTitle }}</p>
+              <p v-if="pickupAddress" class="detail-meta">{{ pickupAddress }}</p>
             </div>
           </article>
           <hr />
@@ -41,25 +49,34 @@
               <ion-icon :icon="locationOutline" aria-hidden="true" />
             </div>
             <div>
-              <p class="detail-title">Drop-off: {{ booking.dropoff.title }}</p>
-              <p class="detail-meta">{{ booking.dropoff.address }}</p>
+              <p class="detail-title">Drop-off: {{ dropoffTitle }}</p>
+              <p v-if="dropoffAddress" class="detail-meta">{{ dropoffAddress }}</p>
             </div>
           </article>
         </section>
 
         <section class="driver-card">
-          <div class="driver-header">
-            <img class="driver-avatar" :src="booking.driver.avatar" :alt="booking.driver.name" />
+          <div class="driver-meta">
+            <div class="driver-avatar" role="img" :aria-label="`${driverName} avatar`">
+              <span>{{ driverInitials }}</span>
+            </div>
             <div>
-              <p class="driver-name">{{ booking.driver.name }}</p>
-              <p class="driver-rating">
-                <ion-icon :icon="star" aria-hidden="true" />
-                {{ booking.driver.rating }} ({{ booking.driver.reviews }} reviews)
-              </p>
+              <p class="driver-name">{{ driverName }}</p>
+              <p class="driver-car">{{ driverVehicle }}</p>
             </div>
           </div>
-          <p class="vehicle-name">{{ booking.vehicle }}</p>
-          <p class="driver-note">{{ booking.note }}</p>
+          <div
+            v-if="driverRating"
+            class="driver-rating"
+            :aria-label="`Driver rating ${driverRating} out of 5`"
+          >
+            <ion-icon :icon="star" aria-hidden="true" />
+            <span>{{ driverRating }}</span>
+          </div>
+        </section>
+
+        <section class="driver-contact-card">
+          <p v-if="driverNote" class="driver-note">{{ driverNote }}</p>
           <div class="driver-actions">
             <ion-button expand="block" fill="outline" color="secondary" @click="contactDriver('message')">
               <ion-icon slot="start" :icon="chatbubbleEllipses" />
@@ -77,18 +94,18 @@
             <p>Booking Summary</p>
             <ion-chip color="secondary" outline>
               <ion-icon :icon="people" />
-              <ion-label>{{ booking.seats }} Seat</ion-label>
+              <ion-label>{{ seatChipLabel }}</ion-label>
             </ion-chip>
           </header>
-          <div class="summary-list">
-            <div v-for="item in booking.summary" :key="item.label" class="summary-row">
+          <div v-if="bookingSummary.length" class="summary-list">
+            <div v-for="item in bookingSummary" :key="item.label" class="summary-row">
               <span>{{ item.label }}</span>
               <strong>{{ item.value }}</strong>
             </div>
           </div>
           <div class="summary-total">
             <span>Total Paid</span>
-            <p>{{ booking.total }}</p>
+            <p>{{ totalPaid }}</p>
           </div>
           <ion-button v-if="showReceiptButton" expand="block" color="secondary" size="large" @click="viewReceipt">
             View Receipt
@@ -126,7 +143,8 @@ import {
   IonContent,
   IonIcon,
   IonLabel,
-  IonPage
+  IonPage,
+  IonSpinner
 } from '@ionic/vue';
 import {
   calendarOutline,
@@ -138,44 +156,212 @@ import {
   people,
   star
 } from 'ionicons/icons';
-import { computed, reactive } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AppBackHeader from '@/components/AppBackHeader.vue';
+import { useUserStore } from '@/stores/userStore';
+import { mapTripToCard, useTripStore } from '@/stores/tripStore';
+import type { TripCardData } from '@/components/TripCard.vue';
+import type { Trip } from '@/services/tripService';
+import { fetchBooking, type BookingResponse } from '@/services/bookingService';
 
 const router = useRouter();
 const route = useRoute();
+const userStore = useUserStore();
+const tripStore = useTripStore();
 
-const booking = reactive({
-  status: 'Paid via card',
-  reference: '#UN-10452',
-  date: 'Monday, 28 October',
-  departure: '18:30',
-  arrival: '18:54',
-  pickup: {
-    title: 'Coventry University',
-    address: 'Priory St, Coventry CV1 5FB'
-  },
-  dropoff: {
-    title: 'Leamington Spa',
-    address: 'Royal Leamington Spa, Warwick CV34 6RH'
-  },
-  vehicle: 'Blue Ford Focus',
-  note: '"No smoking, please. Happy to chat or listen to music!"',
-  driver: {
-    name: 'Sarah K.',
-    rating: '4.8',
-    reviews: 12,
-    avatar: 'https://images.unsplash.com/photo-1504593811423-6dd665756598?auto=format&fit=crop&w=200&q=80'
-  },
-  seats: 1,
-  summary: [
-    { label: 'Fare', value: '£3.50' },
-    { label: 'Booking fee', value: '£0.75' },
-    { label: 'Coverage', value: '£0.30' }
-  ],
-  total: '£4.55',
-  mapImage: './map-placeholder.png'
+const bookingRecord = ref<BookingResponse | null>(null);
+const tripRecord = ref<Trip | null>(null);
+const tripSnapshot = ref<TripCardData | null>(null);
+const isLoading = ref(false);
+const loadError = ref<string | null>(null);
+
+const bookingId = computed(() => route.params.id as string | undefined);
+
+const formatCurrency = (amount: number) =>
+  new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(Number.isFinite(amount) ? amount : 0);
+
+const formatDateLabel = (value?: string | null) => {
+  if (!value) {
+    return 'Date pending';
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return 'Date pending';
+  }
+  return new Intl.DateTimeFormat('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long'
+  }).format(date);
+};
+
+const formatTimeLabel = (value?: string | null) => {
+  if (!value) {
+    return 'Time TBD';
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return 'Time TBD';
+  }
+  return new Intl.DateTimeFormat('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(date);
+};
+
+const deriveInitials = (value: string | null | undefined) => {
+  if (!value) {
+    return 'DR';
+  }
+  return value
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(part => part[0]?.toUpperCase() ?? '')
+    .join('') || 'DR';
+};
+
+const getPointField = (point: unknown, field: 'label' | 'address'): string | null => {
+  if (!point || typeof point !== 'object') {
+    return null;
+  }
+  const data = point as Record<string, unknown>;
+  const value = data[field];
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+};
+
+const loadBookingDetails = async () => {
+  const token = userStore.session?.token;
+  const id = bookingId.value;
+
+  if (!id) {
+    loadError.value = 'Booking reference is missing.';
+    return;
+  }
+
+  if (!token) {
+    loadError.value = 'Please sign in to view this booking.';
+    return;
+  }
+
+  isLoading.value = true;
+  loadError.value = null;
+
+  try {
+    const booking = await fetchBooking(id, token);
+    bookingRecord.value = booking;
+    console.log('Loaded booking', booking);
+
+    if (booking.trip_id) {
+      try {
+        const trip = await tripStore.getTripById(booking.trip_id);
+        tripRecord.value = trip;
+        if (trip) {
+          const { userId } = tripStore.getSessionContext();
+          tripSnapshot.value = mapTripToCard(trip, 0, userId ?? null);
+        } else {
+          tripSnapshot.value = null;
+        }
+      } catch (tripError) {
+        console.warn('Unable to fetch trip for booking', tripError);
+        tripRecord.value = null;
+        tripSnapshot.value = null;
+      }
+    } else {
+      tripRecord.value = null;
+      tripSnapshot.value = null;
+    }
+  } catch (error) {
+    console.error('Unable to load booking', error);
+    loadError.value = error instanceof Error ? error.message : 'Unable to load booking.';
+    bookingRecord.value = null;
+    tripRecord.value = null;
+    tripSnapshot.value = null;
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+const reloadBooking = () => {
+  void loadBookingDetails();
+};
+
+onMounted(() => {
+  void loadBookingDetails();
 });
+
+watch(
+  () => bookingId.value,
+  next => {
+    if (next) {
+      void loadBookingDetails();
+    }
+  }
+);
+
+const bookingReference = computed(() => (bookingRecord.value ? `#${bookingRecord.value.id}` : 'Pending reference'));
+const bookingStatusLabel = computed(() => bookingRecord.value?.status_text ?? 'Pending confirmation');
+const statusSubtitle = computed(() => bookingStatusLabel.value);
+const seatCount = computed(() => bookingRecord.value?.seat ?? 0);
+const seatChipLabel = computed(() => {
+  const seats = seatCount.value;
+  if (!seats) {
+    return 'No seats';
+  }
+  return `${seats} Seat${seats === 1 ? '' : 's'}`;
+});
+
+const tripDateLabel = computed(() => formatDateLabel(tripRecord.value?.departureTime));
+const departureTimeLabel = computed(() => formatTimeLabel(tripRecord.value?.departureTime));
+const arrivalTimeLabel = computed(() => formatTimeLabel(tripRecord.value?.arrivalTime));
+
+const pickupTitle = computed(() => getPointField(bookingRecord.value?.pickup_point ?? null, 'label') ?? tripSnapshot.value?.pickup ?? 'Pickup location pending');
+const pickupAddress = computed(() => getPointField(bookingRecord.value?.pickup_point ?? null, 'address') ?? '');
+const dropoffTitle = computed(() => tripSnapshot.value?.dropoff ?? 'Destination pending');
+const dropoffAddress = computed(() => '');
+
+const driverName = computed(() => {
+  const rawName = tripRecord.value?.user?.name;
+  if (typeof rawName === 'string' && rawName.trim()) {
+    return rawName.trim();
+  }
+  return 'Trip host';
+});
+const driverInitials = computed(() => deriveInitials(driverName.value));
+const driverVehicle = computed(() => {
+  const vehicle = tripRecord.value?.vehicle;
+  if (!vehicle) {
+    return 'Vehicle details coming soon';
+  }
+  const parts = [vehicle.color, vehicle.model, vehicle.plate_number]
+    .map(value => (typeof value === 'string' ? value.trim() : ''))
+    .filter(Boolean);
+  return parts.length ? parts.join(' · ') : 'Vehicle details coming soon';
+});
+const driverRating = computed(() => null);
+const driverNote = computed(() => null);
+
+const bookingSummary = computed(() => {
+  const items: { label: string; value: string }[] = [];
+  if (tripSnapshot.value?.price) {
+    items.push({ label: 'Fare per seat', value: tripSnapshot.value.price });
+  }
+  if (seatCount.value) {
+    items.push({ label: 'Seats booked', value: `${seatCount.value}` });
+  }
+  return items;
+});
+
+const totalPaid = computed(() => formatCurrency(Number(bookingRecord.value?.price ?? 0)));
+const mapImageSrc = computed(() => '/map-placeholder.png');
+
+const hasBooking = computed(() => Boolean(bookingRecord.value));
+const isPastTrip = computed(() => tripSnapshot.value?.state === 'past');
+const showStatusBanner = computed(() => hasBooking.value && !isLoading.value && !loadError.value);
+const showReceiptButton = computed(() => hasBooking.value && !loadError.value);
+const showRateButton = computed(() => showReceiptButton.value && isPastTrip.value);
+const showCancelButton = computed(() => showReceiptButton.value && !isPastTrip.value);
 
 const goBack = () => {
   router.back();
@@ -185,31 +371,50 @@ const contactDriver = (type: 'call' | 'message') => {
   console.info(`Contact driver via ${type}`);
 };
 
-const viewReceipt = () => {
-  console.info('Open receipt view');
+const viewReceipt = async () => {
+  const id = bookingId.value;
+  const token = userStore.session?.token;
+
+  if (!id || !token) {
+    return;
+  }
+
+  const url = `/bookings/${id}/receipt?format=pdf`;
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Unable to load receipt.');
+    }
+
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = downloadUrl;
+    anchor.target = '_blank';
+    anchor.download = `booking-${id}-receipt.pdf`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    window.URL.revokeObjectURL(downloadUrl);
+  } catch (error) {
+    console.error('Unable to download receipt', error);
+  }
 };
 
 const cancelTrip = () => {
-  const bookingId = (route.params.id as string) || 'current';
-  router.push({ name: 'cancel-trip', params: { id: bookingId } });
+  const bookingIdValue = bookingId.value || 'current';
+  router.push({ name: 'cancel-trip', params: { id: bookingIdValue } });
 };
 
-const viewerRole = computed(() => (route.query.role as string) === 'carOwner' ? 'carOwner' : 'coRider');
-const tripStatus = computed(() => (route.query.status as string) || 'confirmed');
-const isCoRider = computed(() => viewerRole.value === 'coRider');
-const isPending = computed(() => tripStatus.value === 'pending');
-const isPast = computed(() => tripStatus.value === 'past');
-const hideStatusSections = computed(() => isCoRider.value && (isPending.value || isPast.value));
-
-const showStatusBanner = computed(() => !hideStatusSections.value);
-const showReceiptButton = computed(() => !hideStatusSections.value);
-const showRateButton = computed(() => isCoRider.value && isPast.value);
-const showCancelButton = computed(() => !showRateButton.value);
-
 const rateTrip = () => {
-  //console.info('Open rate trip modal');
-  const bookingId = (route.params.id as string) || 'current';
-  router.push({ name: 'rate-trip', params: { id: bookingId } });
+  const bookingIdValue = bookingId.value || 'current';
+  router.push({ name: 'rate-trip', params: { id: bookingIdValue } });
 };
 </script>
 
@@ -223,6 +428,29 @@ const rateTrip = () => {
   flex-direction: column;
   gap: 18px;
   padding-bottom: 90px;
+}
+
+.page-message {
+  min-height: 60vh;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 16px;
+}
+
+.page-message ion-spinner {
+  width: 36px;
+  height: 36px;
+}
+
+.page-message p {
+  margin: 0;
+  color: #4a5568;
+}
+
+.error-text {
+  color: #c53030;
+  font-weight: 600;
 }
 
 .status-banner {
@@ -259,6 +487,7 @@ const rateTrip = () => {
 
 .detail-card,
 .driver-card,
+.driver-contact-card,
 .summary-card {
   background: #ffffff;
   border-radius: 24px;
@@ -299,50 +528,69 @@ const rateTrip = () => {
   margin: 16px 0;
 }
 
-.driver-header {
+.driver-card {
+  padding: 18px 20px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
+  gap: 16px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+}
+
+.driver-meta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
 }
 
 .driver-avatar {
   width: 56px;
   height: 56px;
-  border-radius: 16px;
-  object-fit: cover;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #eaf3ff, #d5f2e6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: 0.02em;
+}
+
+.driver-avatar span {
+  font-size: 1rem;
 }
 
 .driver-name {
   margin: 0;
-  font-size: 1.1rem;
-  font-weight: 600;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.driver-car {
+  margin: 4px 0 0;
+  color: #6b738a;
+  font-size: 0.9rem;
 }
 
 .driver-rating {
-  margin: 4px 0 0;
-  color: #8a95a8;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 14px;
+  background: #fff7df;
+  color: #d68006;
+  font-weight: 700;
 }
 
-.driver-rating ion-icon {
-  color: #f8c035;
-}
-
-.chevron {
-  margin-left: auto;
-  color: #c1c7d5;
-}
-
-.vehicle-name {
-  margin: 16px 0 4px;
-  font-weight: 600;
-  color: #111b2b;
+.driver-contact-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .driver-note {
-  margin: 0 0 18px;
+  margin: 0;
   color: #6c7a92;
 }
 

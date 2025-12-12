@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import {
   fetchTrips as fetchTripsRequest,
   fetchTrip as fetchTripRequest,
+  cancelTrip as cancelTripRequest,
   type Trip,
   type TripWithBooking
 } from '@/services/tripService';
@@ -283,6 +284,15 @@ export const useTripStore = defineStore('trips', {
       } finally {
         this.loading = false;
       }
+    },
+    async cancelTrip(tripId: string | number) {
+      const { token } = this.getSessionContext();
+      if (!token) {
+        throw new Error('Authentication required to cancel trip.');
+      }
+
+      await cancelTripRequest(tripId, token);
+      this.trips = this.trips.filter(trip => String(trip.id) !== String(tripId));
     }
   }
 });

@@ -111,7 +111,7 @@ const pickTripEntity = (payload: TripSingleResponse | TripApiEntity | null | und
   return payload as TripApiEntity;
 };
 
-const normalizeTrip = (entity: TripApiEntity): Trip => {
+export const normalizeTrip = (entity: TripApiEntity): Trip => {
   return {
     id: entity.id,
     userId: entity.user_id ?? null,
@@ -252,6 +252,19 @@ export const fetchTrip = async (
   });
 
   return normalizeTrip(response);
+};
+
+export const cancelTrip = async (
+  tripId: number | string,
+  token: string
+): Promise<void> => {
+  await apiRequest(`/trips/cancel`, {
+    method: 'POST',
+    token,
+    body: {
+      trip_id: tripId
+    }
+  });
 };
 
 export const fetchUserBookedTrips = async (
