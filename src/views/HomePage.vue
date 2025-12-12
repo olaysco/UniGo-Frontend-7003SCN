@@ -58,7 +58,7 @@ import { useRouter } from 'vue-router';
 import { IonContent, IonFab, IonFabButton, IonIcon, IonPage, IonToast } from '@ionic/vue';
 import { add, personCircleOutline } from 'ionicons/icons';
 import BrandMark from '@/components/BrandMark.vue';
-import TripCard from '@/components/TripCard.vue';
+import TripCard, { type TripCardData } from '@/components/TripCard.vue';
 import { useUserStore } from '@/stores/userStore';
 import { useToast } from '@/composables/useToast';
 import { useTripStore } from '@/stores/tripStore';
@@ -96,7 +96,26 @@ const { toastMessage, toastColor, toastOpen, showToast, closeToast } = useToast(
 
 const tripStore = useTripStore();
 const { tripCards, loading } = storeToRefs(tripStore);
-const filteredTrips = computed(() => tripCards.value.filter(trip => trip.state === activeTab.value));
+const riderTrips = computed(() => tripStore.riderTripCards);
+const combinedTrips = computed<TripCardData[]>(() => {
+  const seen = new Set<string>();
+  const merged: TripCardData[] = [];
+
+  const addTrip = (trip: TripCardData) => {
+    const uniqueKey = `${trip.role}-${trip.bookingId ?? 'owner'}-${trip.id}`;
+    if (seen.has(uniqueKey)) {
+      return;
+    }
+    seen.add(uniqueKey);
+    merged.push(trip);
+  };
+
+  tripCards.value.forEach(addTrip);
+  riderTrips.value.forEach(addTrip);
+
+  return merged;
+});
+const filteredTrips = computed(() => combinedTrips.value.filter(trip => trip.state === activeTab.value));
 
 const loadTrips = async () => {
   if (loading.value || (tripStore.loaded && tripStore.trips.length)) {
@@ -104,7 +123,8 @@ const loadTrips = async () => {
   }
 
   try {
-    await tripStore.fetchTrips();
+    await tripStore.fetchTrips(true);
+    await tripStore.fetchRiderTrips(true);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to load trips.';
     showToast(message, 'danger');

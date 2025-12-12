@@ -112,6 +112,12 @@ const routes: Array<RouteRecordRaw> = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/booking-receipt/:id',
+    name: 'booking-receipt',
+    component: () => import('@/views/BookingReceiptPage.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/rate-trip/:id?',
     name: 'rate-trip',
       component: () => import('@/views/RatingPage.vue'),
