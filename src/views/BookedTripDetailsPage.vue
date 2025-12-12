@@ -11,10 +11,10 @@
         <ion-button color="secondary" fill="clear" @click="reloadBooking">Retry</ion-button>
       </div>
       <div v-else class="page-body ion-padding">
-        <section v-if="showStatusBanner" class="status-banner">
-          <ion-icon :icon="checkmarkCircle" aria-hidden="true" />
+        <section v-if="showStatusBanner" :class="statusBannerClass">
+          <ion-icon :icon="statusIconName" aria-hidden="true" />
           <div>
-            <p class="status-title">Booking Confirmed! You're all set.</p>
+            <p class="status-title">{{ bookingStatusTitle }}</p>
             <p class="status-subtitle">Reference {{ bookingReference }} • {{ bookingStatusLabel }}</p>
           </div>
         </section>
@@ -116,9 +116,9 @@
             expand="block"
             color="danger"
             size="large"
-            @click="cancelTrip"
+            @click="cancelBooking"
           >
-            Cancel Trip
+            Cancel Booking
           </ion-button>
           <ion-button
             v-if="showRateButton"
@@ -151,16 +151,19 @@ import {
   call,
   chatbubbleEllipses,
   checkmarkCircle,
+  closeCircle,
   locationOutline,
   navigateOutline,
   people,
-  star
+  star,
+  timeOutline,
+  trophyOutline
 } from 'ionicons/icons';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AppBackHeader from '@/components/AppBackHeader.vue';
 import { useUserStore } from '@/stores/userStore';
-import { mapTripToCard, useTripStore } from '@/stores/tripStore';
+import { mapTripToCard } from '@/stores/tripStore';
 import type { TripCardData } from '@/components/TripCard.vue';
 import type { Trip } from '@/services/tripService';
 import { fetchBooking, type BookingResponse } from '@/services/bookingService';
@@ -168,7 +171,6 @@ import { fetchBooking, type BookingResponse } from '@/services/bookingService';
 const router = useRouter();
 const route = useRoute();
 const userStore = useUserStore();
-const tripStore = useTripStore();
 
 const bookingRecord = ref<BookingResponse | null>(null);
 const tripRecord = ref<Trip | null>(null);
@@ -177,6 +179,22 @@ const isLoading = ref(false);
 const loadError = ref<string | null>(null);
 
 const bookingId = computed(() => route.params.id as string | undefined);
+
+type BookingBannerState = 'pending' | 'confirmed' | 'completed' | 'cancelled';
+
+const statusStateByCode: Record<number, BookingBannerState> = {
+  0: 'pending',
+  1: 'confirmed',
+  2: 'completed',
+  3: 'cancelled'
+};
+
+const fallbackStatusLabels: Record<BookingBannerState, string> = {
+  pending: 'Pending confirmation',
+  confirmed: 'Confirmed',
+  completed: 'Trip completed',
+  cancelled: 'Cancelled'
+};
 
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(Number.isFinite(amount) ? amount : 0);
@@ -231,6 +249,36 @@ const getPointField = (point: unknown, field: 'label' | 'address'): string | nul
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 };
 
+const inferStateFromText = (text?: string | null): BookingBannerState | null => {
+  if (!text) {
+    return null;
+  }
+
+  const normalized = text.toLowerCase();
+  if (normalized.includes('pending') || normalized.includes('await') || normalized.includes('review')) {
+    return 'pending';
+  }
+  if (normalized.includes('cancel') || normalized.includes('reject') || normalized.includes('decline')) {
+    return 'cancelled';
+  }
+  if (normalized.includes('complete') || normalized.includes('finish') || normalized.includes('past')) {
+    return 'completed';
+  }
+  if (normalized.includes('confirm') || normalized.includes('accept')) {
+    return 'confirmed';
+  }
+  return null;
+};
+
+const resolveStatusState = (status?: number | null, label?: string | null): BookingBannerState => {
+  const numeric = Number(status);
+  if (!Number.isNaN(numeric) && statusStateByCode[numeric]) {
+    return statusStateByCode[numeric];
+  }
+
+  return inferStateFromText(label) ?? 'pending';
+};
+
 const loadBookingDetails = async () => {
   const token = userStore.session?.token;
   const id = bookingId.value;
@@ -253,23 +301,12 @@ const loadBookingDetails = async () => {
     bookingRecord.value = booking;
     console.log('Loaded booking', booking);
 
-    if (booking.trip_id) {
-      try {
-        const trip = await tripStore.getTripById(booking.trip_id);
-        tripRecord.value = trip;
-        if (trip) {
-          const { userId } = tripStore.getSessionContext();
-          tripSnapshot.value = mapTripToCard(trip, 0, userId ?? null);
-        } else {
-          tripSnapshot.value = null;
-        }
-      } catch (tripError) {
-        console.warn('Unable to fetch trip for booking', tripError);
-        tripRecord.value = null;
-        tripSnapshot.value = null;
-      }
+    const bookingTrip = booking.trip ?? null;
+    tripRecord.value = bookingTrip;
+    if (bookingTrip) {
+      const currentUserId = userStore.session?.user?.id ?? userStore.profile?.id ?? null;
+      tripSnapshot.value = mapTripToCard(bookingTrip, 0, currentUserId ?? null);
     } else {
-      tripRecord.value = null;
       tripSnapshot.value = null;
     }
   } catch (error) {
@@ -301,8 +338,44 @@ watch(
 );
 
 const bookingReference = computed(() => (bookingRecord.value ? `#${bookingRecord.value.id}` : 'Pending reference'));
-const bookingStatusLabel = computed(() => bookingRecord.value?.status_text ?? 'Pending confirmation');
+const bookingStatusState = computed(() =>
+  resolveStatusState(bookingRecord.value?.status ?? null, bookingRecord.value?.status_text ?? null)
+);
+const bookingStatusLabel = computed(() => {
+  const cleanedText = bookingRecord.value?.status_text?.trim();
+  if (cleanedText) {
+    return cleanedText;
+  }
+  return fallbackStatusLabels[bookingStatusState.value];
+});
+const bookingStatusTitle = computed(() => {
+  switch (bookingStatusState.value) {
+    case 'pending':
+      return 'Awaiting confirmation';
+    case 'cancelled':
+      return 'Booking cancelled';
+    case 'completed':
+      return 'Trip completed';
+    case 'confirmed':
+    default:
+      return "Booking Confirmed! You're all set.";
+  }
+});
 const statusSubtitle = computed(() => bookingStatusLabel.value);
+const statusIconName = computed(() => {
+  switch (bookingStatusState.value) {
+    case 'pending':
+      return timeOutline;
+    case 'cancelled':
+      return closeCircle;
+    case 'completed':
+      return trophyOutline;
+    case 'confirmed':
+    default:
+      return checkmarkCircle;
+  }
+});
+const statusBannerClass = computed(() => [`status-banner`, `status-${bookingStatusState.value}`]);
 const seatCount = computed(() => bookingRecord.value?.seat ?? 0);
 const seatChipLabel = computed(() => {
   const seats = seatCount.value;
@@ -407,7 +480,7 @@ const viewReceipt = async () => {
   }
 };
 
-const cancelTrip = () => {
+const cancelBooking = () => {
   const bookingIdValue = bookingId.value || 'current';
   router.push({ name: 'cancel-trip', params: { id: bookingIdValue } });
 };
@@ -454,29 +527,54 @@ const rateTrip = () => {
 }
 
 .status-banner {
+  --banner-bg: #e7f6ef;
+  --banner-icon-color: #1fb16a;
+  --banner-title-color: #0a1c2b;
+  --banner-subtitle-color: #5a697f;
   display: flex;
   align-items: center;
   gap: 12px;
   border-radius: 22px;
-  background: #e7f6ef;
+  background: var(--banner-bg);
   padding: 16px;
 }
 
 .status-banner ion-icon {
-  color: #1fb16a;
+  color: var(--banner-icon-color);
   font-size: 1.4rem;
 }
 
 .status-title {
   margin: 0;
   font-weight: 600;
-  color: #0a1c2b;
+  color: var(--banner-title-color);
 }
 
 .status-subtitle {
   margin: 2px 0 0;
-  color: #5a697f;
+  color: var(--banner-subtitle-color);
   font-size: 0.9rem;
+}
+
+.status-banner.status-pending {
+  --banner-bg: #fff6e5;
+  --banner-icon-color: #f59e0b;
+  --banner-title-color: #8a5400;
+  --banner-subtitle-color: #8a7247;
+}
+
+.status-banner.status-cancelled {
+  --banner-bg: #ffe8ea;
+  --banner-icon-color: #dc2626;
+  --banner-title-color: #7f1d1d;
+  --banner-subtitle-color: #a24a4a;
+}
+
+.status-banner.status-completed {
+  --banner-bg: #e8f0ff;
+  --banner-icon-color: #2563eb;
+  --banner-title-color: #1e3a8a;
+  --banner-subtitle-color: #4a5d94;
 }
 
 .map-card img {
